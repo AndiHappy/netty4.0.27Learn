@@ -51,7 +51,7 @@
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>netty-tcnative</artifactId>
-      <classifier>${os.detected.classifier}</classifier>
+<!--       <classifier>${os.detected.classifier}</classifier>-->
       <scope>test</scope>
     </dependency>
   </dependencies>
@@ -142,8 +142,8 @@
         <artifactId>build-helper-maven-plugin</artifactId>
         <version>1.7</version>
         <executions>
-          <execution>
-            <!-- Phase must be before regex-combined-sendmmsg -->
+<!--           <execution>
+            Phase must be before regex-combined-sendmmsg
             <phase>initialize</phase>
             <id>regex-glibc-sendmmsg</id>
             <goals>
@@ -152,14 +152,14 @@
             <configuration>
               <name>glibc.sendmmsg.support</name>
               <value>${ldd_version}</value>
-              <!-- Version must be >= 2.14 - set to IO_NETTY_SENDMSSG_NOT_FOUND if this version is not satisfied -->
+              Version must be >= 2.14 - set to IO_NETTY_SENDMSSG_NOT_FOUND if this version is not satisfied
               <regex>^((?!^[^)]+\)\s+(0*2\.1[4-9]|0*2\.[2-9][0-9]+|0*[3-9][0-9]*|0*[1-9]+[0-9]+).*).)*$</regex>
               <replacement>IO_NETTY_SENDMSSG_NOT_FOUND</replacement>
               <failIfNoMatch>false</failIfNoMatch>
             </configuration>
-          </execution>
-          <execution>
-            <!-- Phase must be before regex-combined-sendmmsg -->
+          </execution> -->
+<!--           <execution>
+            Phase must be before regex-combined-sendmmsg
             <phase>initialize</phase>
             <id>regex-linux-sendmmsg</id>
             <goals>
@@ -168,14 +168,14 @@
             <configuration>
               <name>linux.sendmmsg.support</name>
               <value>${uname_os_version}</value>
-              <!-- Version must be >= 3 - set to IO_NETTY_SENDMSSG_NOT_FOUND if this version is not satisfied -->
+              Version must be >= 3 - set to IO_NETTY_SENDMSSG_NOT_FOUND if this version is not satisfied
               <regex>^((?!^[0-9]*[3-9]\.?.*).)*$</regex>
               <replacement>IO_NETTY_SENDMSSG_NOT_FOUND</replacement>
               <failIfNoMatch>false</failIfNoMatch>
             </configuration>
-          </execution>
-          <execution>
-            <!-- Phase must be before regex-unset-if-needed-sendmmsg -->
+          </execution> -->
+<!--           <execution>
+            Phase must be before regex-unset-if-needed-sendmmsg
             <phase>generate-sources</phase>
             <id>regex-combined-sendmmsg</id>
             <goals>
@@ -184,14 +184,14 @@
             <configuration>
               <name>jni.compiler.args</name>
               <value>${linux.sendmmsg.support}${glibc.sendmmsg.support}</value>
-              <!-- If glibc and linux kernel are both not sufficient...then define the CFLAGS -->
+              If glibc and linux kernel are both not sufficient...then define the CFLAGS
               <regex>.*IO_NETTY_SENDMSSG_NOT_FOUND.*</regex>
               <replacement>CFLAGS="-DIO_NETTY_SENDMMSG_NOT_FOUND"</replacement>
               <failIfNoMatch>false</failIfNoMatch>
             </configuration>
-          </execution>
-          <execution>
-            <!-- Phase must be before build-native-lib -->
+          </execution> -->
+<!--           <execution>
+            Phase must be before build-native-lib
             <phase>generate-sources</phase>
             <id>regex-unset-if-needed-sendmmsg</id>
             <goals>
@@ -200,12 +200,12 @@
             <configuration>
               <name>jni.compiler.args</name>
               <value>${jni.compiler.args}</value>
-              <!-- If glibc and linux kernel are both not sufficient...then define the CFLAGS -->
+              If glibc and linux kernel are both not sufficient...then define the CFLAGS
               <regex>^((?!CFLAGS=).)*$</regex>
               <replacement>CFLAGS=""</replacement>
               <failIfNoMatch>false</failIfNoMatch>
             </configuration>
-          </execution>
+          </execution> -->
         </executions>
       </plugin>
     </plugins>

@@ -606,7 +606,8 @@
         <groupId>${project.groupId}</groupId>
         <artifactId>netty-tcnative</artifactId>
         <version>1.1.32.Fork1</version>
-        <classifier>${os.detected.classifier}</classifier>
+       <!-- 编译报错故先注释掉 -->
+       <!--  <classifier>${os.detected.classifier}</classifier> -->
         <scope>compile</scope>
         <optional>true</optional>
       </dependency>
