@@ -24,10 +24,14 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Abstract base class for {@link EventExecutor}s that want to support scheduling.
  */
 public abstract class AbstractScheduledEventExecutor extends AbstractEventExecutor {
+	public static final Logger log = LoggerFactory.getLogger(AbstractScheduledEventExecutor.class);
 
     Queue<ScheduledFutureTask<?>> scheduledTaskQueue;
 
@@ -185,6 +189,7 @@ public abstract class AbstractScheduledEventExecutor extends AbstractEventExecut
     }
 
     <V> ScheduledFuture<V> schedule(final ScheduledFutureTask<V> task) {
+    	log.info("add task:{}",task.getClass().getName());
         if (inEventLoop()) {
             scheduledTaskQueue().add(task);
         } else {

@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * the same time.
  */
 public abstract class MultithreadEventExecutorGroup extends AbstractEventExecutorGroup {
-
+	//NioLoopEventGroup的children对应的线程，成员是：SingleThreadEventExecutor
     private final EventExecutor[] children;
     private final AtomicInteger childIndex = new AtomicInteger();
     private final AtomicInteger terminatedChildren = new AtomicInteger();
@@ -43,21 +43,25 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
      * @param args              arguments which will passed to each {@link #newChild(ThreadFactory, Object...)} call
      */
     protected MultithreadEventExecutorGroup(int nThreads, ThreadFactory threadFactory, Object... args) {
+    	 //线程数必须大于零
         if (nThreads <= 0) {
             throw new IllegalArgumentException(String.format("nThreads: %d (expected: > 0)", nThreads));
         }
 
         if (threadFactory == null) {
+        	//默认线程工厂
             threadFactory = newDefaultThreadFactory();
         }
 
+        // children 是SingleThreadEventExecutor数组，children是一个 线程，单个线程的事件执行器
         children = new SingleThreadEventExecutor[nThreads];
+        
         if (isPowerOfTwo(children.length)) {
             chooser = new PowerOfTwoEventExecutorChooser();
         } else {
             chooser = new GenericEventExecutorChooser();
         }
-
+        //遍历的形式建立children数组，
         for (int i = 0; i < nThreads; i ++) {
             boolean success = false;
             try {
@@ -96,6 +100,7 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
             }
         };
 
+        //增加监听
         for (EventExecutor e: children) {
             e.terminationFuture().addListener(terminationListener);
         }
@@ -217,6 +222,7 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
         EventExecutor next();
     }
 
+    //Exector的选择
     private final class PowerOfTwoEventExecutorChooser implements EventExecutorChooser {
         @Override
         public EventExecutor next() {

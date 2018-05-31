@@ -38,6 +38,7 @@ import java.util.List;
  * A {@link io.netty.channel.socket.ServerSocketChannel} implementation which uses
  * NIO selector based implementation to accept new connections.
  */
+//使用NIO Selector实现的一个接受新的连接的Channel
 public class NioServerSocketChannel extends AbstractNioMessageChannel
                              implements io.netty.channel.socket.ServerSocketChannel {
 
@@ -97,6 +98,7 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
 
     @Override
     public ServerSocketChannelConfig config() {
+    	//Channel的配置型信息，在NioServerSocketChannel新建的时候指定
         return config;
     }
 

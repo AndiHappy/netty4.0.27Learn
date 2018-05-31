@@ -15,6 +15,11 @@
  */
 package io.netty.bootstrap;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.concurrent.TimeUnit;
+
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelConfig;
 import io.netty.channel.ChannelFuture;
@@ -27,16 +32,10 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
-import io.netty.channel.socket.SocketChannel;
 import io.netty.util.AttributeKey;
 import io.netty.util.internal.StringUtil;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.concurrent.TimeUnit;
 
 /**
  * {@link Bootstrap} sub-class which allows easy bootstrap of {@link ServerChannel}
@@ -146,9 +145,12 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         return childGroup;
     }
 
+    
     @Override
     void init(Channel channel) throws Exception {
-        final Map<ChannelOption<?>, Object> options = options();
+        
+    	//第一步：初始化Channel的属性和选择
+    	final Map<ChannelOption<?>, Object> options = options();
         synchronized (options) {
             channel.config().setOptions(options);
         }
@@ -161,14 +163,23 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
                 channel.attr(key).set(e.getValue());
             }
         }
-
+        
+        
+        
+//        ChannelPipeline的构建，还是在构造函数中
         ChannelPipeline p = channel.pipeline();
         if (handler() != null) {
             p.addLast(handler());
         }
 
         final EventLoopGroup currentChildGroup = childGroup;
+        //ServerBootStrap的childHandler方法，指定了 childHandler
         final ChannelHandler currentChildHandler = childHandler;
+        
+        //这里面有两个handler，因为ServerBootStrap继承自：AbstractBootstrap
+        //AbstractBootstrap 中有一个成员变量：volatile ChannelHandler handler
+        //ServerBootStrap 有一个成员变量： volatile ChannelHandler childHandler
+        
         final Entry<ChannelOption<?>, Object>[] currentChildOptions;
         final Entry<AttributeKey<?>, Object>[] currentChildAttrs;
         synchronized (childOptions) {
@@ -181,6 +192,9 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         p.addLast(new ChannelInitializer<Channel>() {
             @Override
             public void initChannel(Channel ch) throws Exception {
+            	//这是把currentChildGroup，currentChildHandler 重新封装成了一个类：ServerBootstrapAcceptor
+            	//主要处理acceptor之后的逻辑吗？非常类似ServerBootStrap里面的Binder的处理方式，不知是否是同一个逻辑？
+            	//这个方法的调用是在：ChannelInitializer 的 channelRegistered 里面
                 ch.pipeline().addLast(new ServerBootstrapAcceptor(
                         currentChildGroup, currentChildHandler, currentChildOptions, currentChildAttrs));
             }
@@ -193,6 +207,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         if (childHandler == null) {
             throw new IllegalStateException("childHandler not set");
         }
+        //parentGroup 在上面已经校验过了，如果childHandler没有设置的话，parentGroup替代
         if (childGroup == null) {
             logger.warn("childGroup is not set. Using parentGroup instead.");
             childGroup = group();
@@ -248,7 +263,8 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
             }
 
             try {
-                childGroup.register(child).addListener(new ChannelFutureListener() {
+            	ChannelFuture future = childGroup.register(child);
+            	future.addListener(new ChannelFutureListener() {
                     @Override
                     public void operationComplete(ChannelFuture future) throws Exception {
                         if (!future.isSuccess()) {

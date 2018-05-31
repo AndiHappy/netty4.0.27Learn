@@ -123,8 +123,10 @@ final class DefaultChannelPipeline implements ChannelPipeline {
     @Override
     public ChannelPipeline addLast(EventExecutorGroup group, final String name, ChannelHandler handler) {
         synchronized (this) {
+        	//检查是否重名称
             checkDuplicateName(name);
 
+            //handler 被包装成  newCtx 其中group为null 加入ChannelPipeline的处理链
             AbstractChannelHandlerContext newCtx = new DefaultChannelHandlerContext(this, group, name, handler);
             addLast0(name, newCtx);
         }
@@ -132,7 +134,12 @@ final class DefaultChannelPipeline implements ChannelPipeline {
         return this;
     }
 
+    /**
+     * 把handler加入链中的处理，比较的奇怪。看操作应该是tail成员的前添加handler
+     * 如果head和tail只当做操作的指示位，并不当做具体的handler，还可以理解
+     * */
     private void addLast0(final String name, AbstractChannelHandlerContext newCtx) {
+    	//校验@Sharable之类的东东
         checkMultiplicity(newCtx);
 
         AbstractChannelHandlerContext prev = tail.prev;
@@ -140,7 +147,7 @@ final class DefaultChannelPipeline implements ChannelPipeline {
         newCtx.next = tail;
         prev.next = newCtx;
         tail.prev = newCtx;
-
+  
         name2ctx.put(name, newCtx);
 
         callHandlerAdded(newCtx);
@@ -239,6 +246,7 @@ final class DefaultChannelPipeline implements ChannelPipeline {
         return this;
     }
 
+    //向ChannelPipeline 增加处理链中的成员
     @Override
     public ChannelPipeline addLast(ChannelHandler... handlers) {
         return addLast(null, handlers);
@@ -260,7 +268,10 @@ final class DefaultChannelPipeline implements ChannelPipeline {
         return this;
     }
 
+    //可以重复利用的一个方法！！！
     private String generateName(ChannelHandler handler) {
+    	//WeakHashMap 见到一次不容易啊
+    	//线程起名字使用
         WeakHashMap<Class<?>, String> cache = nameCaches[(int) (Thread.currentThread().getId() % nameCaches.length)];
         Class<?> handlerType = handler.getClass();
         String name;
@@ -272,9 +283,11 @@ final class DefaultChannelPipeline implements ChannelPipeline {
             }
         }
 
+        
         synchronized (this) {
             // It's not very likely for a user to put more than one handler of the same type, but make sure to avoid
             // any name conflicts.  Note that we don't cache the names generated here.
+        	//一般情况下，一种类型的handler，只会出现一次，但是为了防止意外
             if (name2ctx.containsKey(name)) {
                 String baseName = name.substring(0, name.length() - 1); // Strip the trailing '0'.
                 for (int i = 1;; i ++) {
@@ -470,6 +483,7 @@ final class DefaultChannelPipeline implements ChannelPipeline {
     }
 
     private void callHandlerAdded(final AbstractChannelHandlerContext ctx) {
+    	//一开始的时候，Channel还没有注册
         if (ctx.channel().isRegistered() && !ctx.executor().inEventLoop()) {
             ctx.executor().execute(new Runnable() {
                 @Override
@@ -729,6 +743,9 @@ final class DefaultChannelPipeline implements ChannelPipeline {
         return buf.toString();
     }
 
+    /**
+     * 与3.2的不同是
+     * */
     @Override
     public ChannelPipeline fireChannelRegistered() {
         head.fireChannelRegistered();
@@ -901,6 +918,8 @@ final class DefaultChannelPipeline implements ChannelPipeline {
 
     @Override
     public ChannelFuture bind(SocketAddress localAddress, ChannelPromise promise) {
+    	//io.netty.channel.DefaultChannelPipeline.bind(SocketAddress, ChannelPromise)
+    	//Pipeline的bind绑定，竟然是tail端开始绑定
         return tail.bind(localAddress, promise);
     }
 

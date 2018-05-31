@@ -111,12 +111,16 @@ public final class NioEventLoop extends SingleThreadEventLoop {
     private int cancelledKeys;
     private boolean needsToSelectAgain;
 
+    //所有的NioEventLoop的selectorProvider应该是一样的，这个的话：
+    // selector = provider.openSelector() 
     NioEventLoop(NioEventLoopGroup parent, ThreadFactory threadFactory, SelectorProvider selectorProvider) {
+    	//单线程的执行器
         super(parent, threadFactory, false);
         if (selectorProvider == null) {
             throw new NullPointerException("selectorProvider");
         }
         provider = selectorProvider;
+        // 
         selector = openSelector();
     }
 
@@ -299,45 +303,63 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         logger.info("Migrated " + nChannels + " channel(s) to the new Selector.");
     }
 
+
+    // 'wakenUp.compareAndSet(false, true)' is always evaluated
+    // before calling 'selector.wakeup()' to reduce the wake-up
+    // overhead. (Selector.wakeup() is an expensive operation.)
+    //
+    // However, there is a race condition in this approach.
+    // The race condition is triggered when 'wakenUp' is set to
+    // true too early.
+    //
+    // 'wakenUp' is set to true too early if:
+    // 1) Selector is waken up between 'wakenUp.set(false)' and
+    //    'selector.select(...)'. (BAD)
+    // 2) Selector is waken up between 'selector.select(...)' and
+    //    'if (wakenUp.get()) { ... }'. (OK)
+    //
+    // In the first case, 'wakenUp' is set to true and the
+    // following 'selector.select(...)' will wake up immediately.
+    // Until 'wakenUp' is set to false again in the next round,
+    // 'wakenUp.compareAndSet(false, true)' will fail, and therefore
+    // any attempt to wake up the Selector will fail, too, causing
+    // the following 'selector.select(...)' call to block
+    // unnecessarily.
+    //
+    // To fix this problem, we wake up the selector again if wakenUp
+    // is true immediately after selector.select(...).
+    // It is inefficient in that it wakes up the selector for both
+    // the first case (BAD - wake-up required) and the second case
+    // (OK - no wake-up required).
+    
+//	 selectNow() 方法会检查当前是否有就绪的 IO 事件, 如果有, 则返回就绪 IO 事件的个数; 如果没有, 则返回0. 
+//	 注意, selectNow() 是立即返回的, 不会阻塞当前线程. 
+//	 当 selectNow() 调用后, finally 语句块中会检查 wakenUp 变量是否为 true, 
+//	 当为 true 时, 调用 selector.wakeup() 唤醒 select() 的阻塞调用
+
+ 
+//	当 taskQueue 中没有任务时, 那么 Netty 可以阻塞地等待 IO 就绪事件; 而当 taskQueue 中有任务时,
+//	我们自然地希望所提交的任务可以尽快地执行, 因此 Netty 会调用非阻塞的 selectNow() 方法, 以保证 taskQueue 中的任务尽快可以执行.
+
     @Override
     protected void run() {
         for (;;) {
+//        	System.out.println("wakenUp get and set false !");
             boolean oldWakenUp = wakenUp.getAndSet(false);
             try {
-                if (hasTasks()) {
-                    selectNow();
+            	//taskQueue中是否有任务
+                if (hasTasks()) {//有任务的情况
+                	/**
+                	Selects a set of keys whose corresponding channels are ready for I/O operations.
+                	This method performs a non-blocking selection operation. 
+                	If no channels have become selectable since the previous 
+                	selection operation then this method immediately returns zero.
+                	Invoking this method clears the effect of any previous invocations of the wakeup method.
+                	 * */
+                    selectNow();//Invoking this method clears the effect of any previous invocations of the wakeup method.
                 } else {
                     select(oldWakenUp);
-
-                    // 'wakenUp.compareAndSet(false, true)' is always evaluated
-                    // before calling 'selector.wakeup()' to reduce the wake-up
-                    // overhead. (Selector.wakeup() is an expensive operation.)
-                    //
-                    // However, there is a race condition in this approach.
-                    // The race condition is triggered when 'wakenUp' is set to
-                    // true too early.
-                    //
-                    // 'wakenUp' is set to true too early if:
-                    // 1) Selector is waken up between 'wakenUp.set(false)' and
-                    //    'selector.select(...)'. (BAD)
-                    // 2) Selector is waken up between 'selector.select(...)' and
-                    //    'if (wakenUp.get()) { ... }'. (OK)
-                    //
-                    // In the first case, 'wakenUp' is set to true and the
-                    // following 'selector.select(...)' will wake up immediately.
-                    // Until 'wakenUp' is set to false again in the next round,
-                    // 'wakenUp.compareAndSet(false, true)' will fail, and therefore
-                    // any attempt to wake up the Selector will fail, too, causing
-                    // the following 'selector.select(...)' call to block
-                    // unnecessarily.
-                    //
-                    // To fix this problem, we wake up the selector again if wakenUp
-                    // is true immediately after selector.select(...).
-                    // It is inefficient in that it wakes up the selector for both
-                    // the first case (BAD - wake-up required) and the second case
-                    // (OK - no wake-up required).
-
-                    if (wakenUp.get()) {
+                    if (wakenUp.get()) {//没有任务的情况
                         selector.wakeup();
                     }
                 }
@@ -345,18 +367,17 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                 cancelledKeys = 0;
                 needsToSelectAgain = false;
                 final int ioRatio = this.ioRatio;
+                //表示的是此线程分配给 IO 操作所占的时间比(即运行 processSelectedKeys 耗时在整个循环中所占用的时间). 例如 ioRatio 默认是 50, 则表示 IO 操作和执行 task 的所占用的线程执行时间比是 1 : 1. 
                 if (ioRatio == 100) {
                     processSelectedKeys();
                     runAllTasks();
                 } else {
                     final long ioStartTime = System.nanoTime();
-
+                    //处理SelectedKeys的事件，accept，read，write
                     processSelectedKeys();
-
                     final long ioTime = System.nanoTime() - ioStartTime;
                     runAllTasks(ioTime * (100 - ioRatio) / ioRatio);
                 }
-
                 if (isShuttingDown()) {
                     closeAll();
                     if (confirmShutdown()) {
@@ -365,7 +386,6 @@ public final class NioEventLoop extends SingleThreadEventLoop {
                 }
             } catch (Throwable t) {
                 logger.warn("Unexpected exception in the selector loop.", t);
-
                 // Prevent possible consecutive immediate failures that lead to
                 // excessive CPU consumption.
                 try {
@@ -507,6 +527,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             int readyOps = k.readyOps();
             // Also check for readOps of 0 to workaround possible JDK bug which may otherwise lead
             // to a spin loop
+            //read 和 accept事件
             if ((readyOps & (SelectionKey.OP_READ | SelectionKey.OP_ACCEPT)) != 0 || readyOps == 0) {
                 unsafe.read();
                 if (!ch.isOpen()) {

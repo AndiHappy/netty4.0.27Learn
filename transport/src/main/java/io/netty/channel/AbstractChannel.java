@@ -56,6 +56,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
     private final Channel parent;
     private final long hashCode = ThreadLocalRandom.current().nextLong();
     private final Unsafe unsafe;
+    //Channel的成员变量pipeline，其中注册AbstractChannelHandlerContext处理链
     private final DefaultChannelPipeline pipeline;
     private final ChannelFuture succeededFuture = new SucceededChannelFuture(this, null);
     private final VoidChannelPromise voidPromise = new VoidChannelPromise(this, true);
@@ -414,16 +415,16 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 
             AbstractChannel.this.eventLoop = eventLoop;
 
+            //register0为什么会被执行两次呢？
+            //一次是bootStrapServer启动的时候？
+            //一次是telnet 127.0.0.1 8009 的时候？并且在这个时候，childHandler的处理才会初始化
+            //
             if (eventLoop.inEventLoop()) {
                 register0(promise);
             } else {
                 try {
-                    eventLoop.execute(new OneTimeTask() {
-                        @Override
-                        public void run() {
-                            register0(promise);
-                        }
-                    });
+                	OneTimeTaskImpl task = new OneTimeTaskImpl(promise);
+                    eventLoop.execute(task);
                 } catch (Throwable t) {
                     logger.warn(
                             "Force-closing a channel whose registration task was not accepted by an event loop: {}",
@@ -434,7 +435,23 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 }
             }
         }
+        
+        class OneTimeTaskImpl extends OneTimeTask {
+        	ChannelPromise promise;
+        	public OneTimeTaskImpl(ChannelPromise promise){
+        		logger.info("新建OneTimeTaskImpl");
+        		this.promise = promise;
+        	}
+        	  @Override
+              public void run() {
+                  register0(promise);
+              }
 
+        }
+
+
+        //void io.netty.channel.AbstractChannel.AbstractUnsafe.register0(ChannelPromise promise)
+        //doRegister()的实现在：io.netty.channel.nio.AbstractNioChannel.doRegister() 中
         private void register0(ChannelPromise promise) {
             try {
                 // check if the channel is still open as it could be closed in the mean time when the register
@@ -447,6 +464,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 neverRegistered = false;
                 registered = true;
                 safeSetSuccess(promise);
+                //register之后，channel处于active的状态
                 pipeline.fireChannelRegistered();
                 // Only fire a channelActive if the channel has never been registered. This prevents firing
                 // multiple channel actives if the channel is deregistered and re-registered.

@@ -43,11 +43,23 @@ public abstract class SingleThreadEventLoop extends SingleThreadEventExecutor im
         return (EventLoop) super.next();
     }
 
+    /**
+     * 
+     * 客户端的channel也进行register的注册，这个注册时为了什么呢？
+     * [id: 0x26e72531, /127.0.0.1:61499 => /127.0.0.1:8009]
+     * */
     @Override
     public ChannelFuture register(Channel channel) {
+    	//注册channel到Selector
+    	log.info("{} register:{}",this.getClass().getName(),channel.toString());
         return register(channel, new DefaultChannelPromise(channel, this));
     }
 
+    /**
+     * NioEventLoopGroup在BootStrapServer的bind中，会先调用register方法
+     * 而register方法，有NioEventLoopGroup相应，NioEventLoopGroup根据一定的规则
+     * 选择child数组里面的NioEventLoop来进行处理。
+     * */
     @Override
     public ChannelFuture register(final Channel channel, final ChannelPromise promise) {
         if (channel == null) {

@@ -27,11 +27,34 @@ public class DiscardServerHandler extends SimpleChannelInboundHandler<Object> {
     public void channelRead0(ChannelHandlerContext ctx, Object msg) throws Exception {
         // discard
     }
-
+    
+    @Override
+    public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
+    	System.out.println(format(ctx, " channelRegistered"));
+        ctx.fireChannelRegistered();
+    }
+    
+   
+    @Override
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+    	System.out.println(format(ctx, " channelActive"));
+        ctx.fireChannelActive();
+    }
+    
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         // Close the connection when an exception is raised.
         cause.printStackTrace();
         ctx.close();
     }
+    
+    protected String format(ChannelHandlerContext ctx, String message) {
+        String chStr = ctx.channel().toString();
+        return new StringBuilder(chStr.length() + message.length() + 1)
+        .append(chStr)
+        .append(' ')
+        .append(message)
+        .toString();
+    }
+
 }

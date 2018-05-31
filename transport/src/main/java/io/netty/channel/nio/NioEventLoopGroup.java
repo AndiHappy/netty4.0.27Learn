@@ -81,6 +81,7 @@ public class NioEventLoopGroup extends MultithreadEventLoopGroup {
         }
     }
 
+    //子线程的的对象是：EventExecutor，但是具体的对象下依然是：NioEventLoop
     @Override
     protected EventExecutor newChild(
             ThreadFactory threadFactory, Object... args) throws Exception {

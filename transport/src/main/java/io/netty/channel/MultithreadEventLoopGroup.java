@@ -27,10 +27,12 @@ import java.util.concurrent.ThreadFactory;
  * Abstract base class for {@link EventLoopGroup} implementations that handles their tasks with multiple threads at
  * the same time.
  */
+//EventLoopGroup基础功能的实现
 public abstract class MultithreadEventLoopGroup extends MultithreadEventExecutorGroup implements EventLoopGroup {
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(MultithreadEventLoopGroup.class);
 
+    //默认的worker的数量，CPU*2
     private static final int DEFAULT_EVENT_LOOP_THREADS;
 
     static {
@@ -61,6 +63,10 @@ public abstract class MultithreadEventLoopGroup extends MultithreadEventExecutor
 
     @Override
     public ChannelFuture register(Channel channel) {
+    	//next() 是选择excetor，选择的是boss中一个线程，已经独立成一个线程类：SingleThreadEventLoop
+    	//SingleThreadEventLoop: Abstract base class for EventLoop's 
+        //that execute all its submitted tasks in a single thread.
+    	//这里的next()方法返回的就是:SingleThreadEventLoop
         return next().register(channel);
     }
 

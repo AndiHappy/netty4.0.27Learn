@@ -55,8 +55,8 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         }
     };
 
+    //安全的方式获得某一个值，值得借鉴
     private static final AtomicIntegerFieldUpdater<SingleThreadEventExecutor> STATE_UPDATER;
-
     static {
         AtomicIntegerFieldUpdater<SingleThreadEventExecutor> updater =
                 PlatformDependent.newAtomicIntegerFieldUpdater(SingleThreadEventExecutor.class, "state");
@@ -92,6 +92,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
      * @param addTaskWakesUp    {@code true} if and only if invocation of {@link #addTask(Runnable)} will wake up the
      *                          executor thread
      */
+    //并不是一个线程池，只是一个线程，signal Thread
     protected SingleThreadEventExecutor(
             EventExecutorGroup parent, ThreadFactory threadFactory, boolean addTaskWakesUp) {
 
@@ -100,14 +101,20 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         }
 
         this.parent = parent;
+        //初始化 新建的时候，addTaskWakesUp为false
         this.addTaskWakesUp = addTaskWakesUp;
 
+        //新建了一个线程！！！一开始并且没有执行
+        //这个thread的线程，是判断inEventLoop的依据
         thread = threadFactory.newThread(new Runnable() {
             @Override
             public void run() {
                 boolean success = false;
+                //更新上次执行的时间
                 updateLastExecutionTime();
                 try {
+                	//调用run方法，不过以这种方式启动SingleThreadEventExecutor的run方法，也算一种特色
+                	//run为抽象的方法，有NioEventLoop实现
                     SingleThreadEventExecutor.this.run();
                     success = true;
                 } catch (Throwable t) {
@@ -686,19 +693,23 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         if (inEventLoop) {
             addTask(task);
         } else {
+        	//标记STATE_UPDATER的状态，并且start thread，调用了： thread.start();
             startThread();
-            addTask(task);
+            addTask(task);//把任务加入taskQueue
             if (isShutdown() && removeTask(task)) {
                 reject();
             }
         }
 
         if (!addTaskWakesUp && wakesUpForTask(task)) {
+//        	logger.info("wakeup.....");
+        	//wakeup的实现逻辑，就是增加一个空的线程WAKEUP_TASK
             wakeup(inEventLoop);
         }
     }
 
     @SuppressWarnings("unused")
+    //为了实现类进行覆盖
     protected boolean wakesUpForTask(Runnable task) {
         return true;
     }
@@ -712,12 +723,17 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
     private static final long SCHEDULE_PURGE_INTERVAL = TimeUnit.SECONDS.toNanos(1);
 
     private void startThread() {
+    	// ST_NOT_STARTED 状态码，标识线程还没有启动
         if (STATE_UPDATER.get(this) == ST_NOT_STARTED) {
+        	//没有启动的情况下，启动线程SignalThread
+        	//先设置状态
             if (STATE_UPDATER.compareAndSet(this, ST_NOT_STARTED, ST_STARTED)) {
-                schedule(new ScheduledFutureTask<Void>(
-                        this, Executors.<Void>callable(new PurgeTask(), null),
-                        ScheduledFutureTask.deadlineNanos(SCHEDULE_PURGE_INTERVAL), -SCHEDULE_PURGE_INTERVAL));
+            	//??安排任务??
+                schedule(new ScheduledFutureTask<Void>(this, Executors.<Void>callable(new PurgeTask(), null),ScheduledFutureTask.deadlineNanos(SCHEDULE_PURGE_INTERVAL), -SCHEDULE_PURGE_INTERVAL));
+//                logger.info("schedule over !!!!");
+                //线程任务启动
                 thread.start();
+//                logger.info("thread.start !!!!");
             }
         }
     }

@@ -231,6 +231,9 @@ public class LoggingHandler extends ChannelDuplexHandler {
         super.userEventTriggered(ctx, evt);
     }
 
+    /**
+     * 这个却不是fireEvent，而是直接的handler的调用
+     * */
     @Override
     public void bind(ChannelHandlerContext ctx,
             SocketAddress localAddress, ChannelPromise promise) throws Exception {

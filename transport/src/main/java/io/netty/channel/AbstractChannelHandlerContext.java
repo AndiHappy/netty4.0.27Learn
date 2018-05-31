@@ -34,7 +34,9 @@ abstract class AbstractChannelHandlerContext extends DefaultAttributeMap impleme
     volatile AbstractChannelHandlerContext next;
     volatile AbstractChannelHandlerContext prev;
 
+    // inbound 类型
     private final boolean inbound;
+    // outbound类型
     private final boolean outbound;
     private final AbstractChannel channel;
     private final DefaultChannelPipeline pipeline;
@@ -159,6 +161,9 @@ abstract class AbstractChannelHandlerContext extends DefaultAttributeMap impleme
 
     private void invokeChannelRegistered() {
         try {
+        	
+        	ChannelInboundHandler handlter = ((ChannelInboundHandler) handler());
+        	logger.info("ChannelRegistered: "+ format(this, " handler Class:") + handlter.getClass().getName());
             ((ChannelInboundHandler) handler()).channelRegistered(this);
         } catch (Throwable t) {
             notifyHandlerException(t);
@@ -320,6 +325,8 @@ abstract class AbstractChannelHandlerContext extends DefaultAttributeMap impleme
         invokedNextChannelRead = true;
         final AbstractChannelHandlerContext next = findContextInbound();
         EventExecutor executor = next.executor();
+        //如果这个执行在inEventLoop，说明已经在线程内部了，不是线程外面了
+        //从代码上面看，确实没有什么奇怪的动作
         if (executor.inEventLoop()) {
             next.invokeChannelRead(msg);
         } else {
@@ -898,7 +905,10 @@ abstract class AbstractChannelHandlerContext extends DefaultAttributeMap impleme
         return ctx;
     }
 
+    //找到Outbound开头的那个AbstractChannelHandlerContext
     private AbstractChannelHandlerContext findContextOutbound() {
+    	//this的处理器在开始的时候是：io.netty.channel.DefaultChannelPipeline$TailContext@158d2680
+    	//即是：tail，tail向前找，并且找到的是outbound 
         AbstractChannelHandlerContext ctx = this;
         do {
             ctx = ctx.prev;
@@ -1037,5 +1047,14 @@ abstract class AbstractChannelHandlerContext extends DefaultAttributeMap impleme
         protected void recycle(Recycler.Handle handle) {
             RECYCLER.recycle(this, handle);
         }
+    }
+    
+    public String format(ChannelHandlerContext ctx, String message) {
+        String chStr = ctx.channel().toString();
+        return new StringBuilder(chStr.length() + message.length() + 1)
+        .append(chStr)
+        .append(' ')
+        .append(message)
+        .toString();
     }
 }

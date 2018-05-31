@@ -44,6 +44,7 @@ import java.net.StandardSocketOptions;
  * </tr>
  * </table>
  */
+//ServerChannel的配置型信息
 public interface ServerSocketChannelConfig extends ChannelConfig {
 
     /**

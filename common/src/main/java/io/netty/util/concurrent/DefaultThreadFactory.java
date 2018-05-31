@@ -98,6 +98,7 @@ public class DefaultThreadFactory implements ThreadFactory {
 
     @Override
     public Thread newThread(Runnable r) {
+    	// DefaultRunnableDecorator 线程装饰模型
         Thread t = newThread(new DefaultRunnableDecorator(r), prefix + nextId.incrementAndGet());
         try {
             if (t.isDaemon()) {

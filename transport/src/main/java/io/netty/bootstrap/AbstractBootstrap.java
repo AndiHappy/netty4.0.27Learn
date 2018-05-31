@@ -197,9 +197,12 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      */
     @SuppressWarnings("unchecked")
     public B validate() {
+    	//ServerBootStarp中group中已经设置了
         if (group == null) {
             throw new IllegalStateException("group not set");
         }
+        //channel ServerBootStarp中指定Channel的时候已经指定了
+        //channelFactory(new BootstrapChannelFactory<C>(channelClass))
         if (channelFactory == null) {
             throw new IllegalStateException("channel or channelFactory not set");
         }
@@ -268,6 +271,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     }
 
     private ChannelFuture doBind(final SocketAddress localAddress) {
+    	//初始化Channel，并且注册 ！！！
         final ChannelFuture regFuture = initAndRegister();
         final Channel channel = regFuture.channel();
         if (regFuture.cause() != null) {
@@ -302,9 +306,15 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         }
     }
 
+    /**
+     * 初始化，并且注册 Channel
+     * */
     final ChannelFuture initAndRegister() {
+    	//channelFactory ServerBootStrap中的Channel方法已经指定
+    	//newChannel 直接是类型的Class new instance，这点和原来的差别比较的大
         final Channel channel = channelFactory().newChannel();
         try {
+        	//初始化，独立出来了,抽象的方法，必须有子类进行定义
             init(channel);
         } catch (Throwable t) {
             channel.unsafe().closeForcibly();
@@ -312,6 +322,19 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
             return new DefaultChannelPromise(channel, GlobalEventExecutor.INSTANCE).setFailure(t);
         }
 
+        //初始化完成以后，就是注册
+        //group指定的是：ServerBootStrap中指定的：io.netty.channel.nio.NioEventLoopGroup
+        /**
+         * EventLoopGroup:Special EventExecutorGroup which allows registering Channels that 
+         * get processed for later selection during the event loop.
+         * 
+         * EventLoop：Will handle all the I/O operations for a Channel once registered. 
+         * One EventLoop instance will usually handle more than one Channel but this may depend on implementation details and internals.
+         * 
+         * EventExecutor：The EventExecutor is a special EventExecutorGroup which 
+         * comes with some handy methods to see if a Thread is executed in a event loop. 
+         * Besides this, it also extends the EventExecutorGroup to allow for a generic way to access methods.
+         * */
         ChannelFuture regFuture = group().register(channel);
         if (regFuture.cause() != null) {
             if (channel.isRegistered()) {

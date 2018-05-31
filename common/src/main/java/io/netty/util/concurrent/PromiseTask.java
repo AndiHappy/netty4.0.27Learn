@@ -68,6 +68,7 @@ class PromiseTask<V> extends DefaultPromise<V> implements RunnableFuture<V> {
 
     @Override
     public void run() {
+    	
         try {
             if (setUncancellableInternal()) {
                 V result = task.call();

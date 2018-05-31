@@ -20,7 +20,12 @@ import io.netty.util.concurrent.EventExecutorGroup;
 /**
  * Special {@link EventExecutorGroup} which allows registering {@link Channel}s that get
  * processed for later selection during the event loop.
- *
+ * 
+ * EventLoopGroup 接口本身比较的简单，主要关注
+ * next 返回处理的接入的一个线程池
+ * register 就是把channel注册到selector上面
+ * 
+ * 但是EventLoopGroup继承自：EventExecutorGroup 一个线程池的接口
  */
 public interface EventLoopGroup extends EventExecutorGroup {
     /**
