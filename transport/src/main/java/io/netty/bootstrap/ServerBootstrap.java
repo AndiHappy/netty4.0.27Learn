@@ -263,6 +263,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
             }
 
             try {
+            	//这个就是client端，进行了注册io.netty.channel.nio.NioEventLoopGroup进行的register的方法
             	ChannelFuture future = childGroup.register(child);
             	future.addListener(new ChannelFutureListener() {
                     @Override

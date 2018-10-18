@@ -163,7 +163,7 @@ abstract class AbstractChannelHandlerContext extends DefaultAttributeMap impleme
         try {
         	
         	ChannelInboundHandler handlter = ((ChannelInboundHandler) handler());
-        	logger.info("ChannelRegistered: "+ format(this, " handler Class:") + handlter.getClass().getName());
+        	logger.info("ChannelRegistered: "+ format(this, "handler Class:") + handlter.getClass().getName());
             ((ChannelInboundHandler) handler()).channelRegistered(this);
         } catch (Throwable t) {
             notifyHandlerException(t);
@@ -326,7 +326,7 @@ abstract class AbstractChannelHandlerContext extends DefaultAttributeMap impleme
         final AbstractChannelHandlerContext next = findContextInbound();
         EventExecutor executor = next.executor();
         //如果这个执行在inEventLoop，说明已经在线程内部了，不是线程外面了
-        //从代码上面看，确实没有什么奇怪的动作
+        //从代码上面看，确实没有什么奇怪的,但是处理的怎么怎么统一呢？
         if (executor.inEventLoop()) {
             next.invokeChannelRead(msg);
         } else {
@@ -343,7 +343,9 @@ abstract class AbstractChannelHandlerContext extends DefaultAttributeMap impleme
     private void invokeChannelRead(Object msg) {
         invokedThisChannelRead = true;
         try {
-            ((ChannelInboundHandler) handler()).channelRead(this, msg);
+        	ChannelInboundHandler handler =  ((ChannelInboundHandler) handler());
+        	logger.info("handlerClass: "+ handler.getClass().getName()+ " msg: "+ msg.getClass().getName());
+        	handler.channelRead(this, msg);
         } catch (Throwable t) {
             notifyHandlerException(t);
         }

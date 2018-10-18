@@ -16,16 +16,6 @@
 package io.netty.channel.nio;
 
 
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelException;
-import io.netty.channel.EventLoopException;
-import io.netty.channel.SingleThreadEventLoop;
-import io.netty.channel.nio.AbstractNioChannel.NioUnsafe;
-import io.netty.util.internal.PlatformDependent;
-import io.netty.util.internal.SystemPropertyUtil;
-import io.netty.util.internal.logging.InternalLogger;
-import io.netty.util.internal.logging.InternalLoggerFactory;
-
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.channels.CancelledKeyException;
@@ -43,12 +33,27 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelException;
+import io.netty.channel.EventLoopException;
+import io.netty.channel.SingleThreadEventLoop;
+import io.netty.channel.nio.AbstractNioChannel.NioUnsafe;
+import io.netty.util.internal.PlatformDependent;
+import io.netty.util.internal.SystemPropertyUtil;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
+
 /**
  * {@link SingleThreadEventLoop} implementation which register the {@link Channel}'s to a
  * {@link Selector} and so does the multi-plexing of these in the event loop.
  *
  */
 public final class NioEventLoop extends SingleThreadEventLoop {
+
+	public static final Logger log = LoggerFactory.getLogger(NioEventLoop.class);
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(NioEventLoop.class);
 
@@ -120,7 +125,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             throw new NullPointerException("selectorProvider");
         }
         provider = selectorProvider;
-        // 
+        // NioEventLoop 里面的openSelector比较的厉害，直接的注入：SelectedSelectionKeySet
         selector = openSelector();
     }
 
@@ -137,6 +142,9 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         }
 
         try {
+        	/**
+        	 * 令人震惊的注入操作
+        	 * */
             SelectedSelectionKeySet selectedKeySet = new SelectedSelectionKeySet();
 
             Class<?> selectorImplClass =
@@ -153,6 +161,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             selectedKeysField.setAccessible(true);
             publicSelectedKeysField.setAccessible(true);
 
+            //注入自定义的SelectedSelectionKeySet
             selectedKeysField.set(selector, selectedKeySet);
             publicSelectedKeysField.set(selector, selectedKeySet);
 
@@ -344,18 +353,9 @@ public final class NioEventLoop extends SingleThreadEventLoop {
     @Override
     protected void run() {
         for (;;) {
-//        	System.out.println("wakenUp get and set false !");
             boolean oldWakenUp = wakenUp.getAndSet(false);
             try {
-            	//taskQueue中是否有任务
                 if (hasTasks()) {//有任务的情况
-                	/**
-                	Selects a set of keys whose corresponding channels are ready for I/O operations.
-                	This method performs a non-blocking selection operation. 
-                	If no channels have become selectable since the previous 
-                	selection operation then this method immediately returns zero.
-                	Invoking this method clears the effect of any previous invocations of the wakeup method.
-                	 * */
                     selectNow();//Invoking this method clears the effect of any previous invocations of the wakeup method.
                 } else {
                     select(oldWakenUp);
@@ -397,6 +397,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         }
     }
 
+    // SelectedSelectionKeySet selectedKeys;
     private void processSelectedKeys() {
         if (selectedKeys != null) {
             processSelectedKeysOptimized(selectedKeys.flip());
@@ -485,6 +486,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             final Object a = k.attachment();
 
             if (a instanceof AbstractNioChannel) {
+            	log.info("processSelectedKeysOptimized attachment:{},class:{}",a.toString(),a.getClass().getName());
                 processSelectedKey(k, (AbstractNioChannel) a);
             } else {
                 @SuppressWarnings("unchecked")
@@ -516,6 +518,10 @@ public final class NioEventLoop extends SingleThreadEventLoop {
     }
 
     private static void processSelectedKey(SelectionKey k, AbstractNioChannel ch) {
+    	//accept的接入的unsafe
+    	//io.netty.channel.nio.AbstractNioMessageChannel$NioMessageUnsafe@2b8f6e87
+    	//读时间的unsafe
+    	//io.netty.channel.socket.nio.NioSocketChannel$NioSocketChannelUnsafe@4540404e
         final NioUnsafe unsafe = ch.unsafe();
         if (!k.isValid()) {
             // close the channel if the key is not valid anymore

@@ -702,8 +702,6 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         }
 
         if (!addTaskWakesUp && wakesUpForTask(task)) {
-//        	logger.info("wakeup.....");
-        	//wakeup的实现逻辑，就是增加一个空的线程WAKEUP_TASK
             wakeup(inEventLoop);
         }
     }

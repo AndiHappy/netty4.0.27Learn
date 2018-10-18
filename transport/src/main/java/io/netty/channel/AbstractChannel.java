@@ -423,6 +423,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 register0(promise);
             } else {
                 try {
+                	
                 	OneTimeTaskImpl task = new OneTimeTaskImpl(promise);
                     eventLoop.execute(task);
                 } catch (Throwable t) {
