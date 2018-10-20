@@ -38,6 +38,7 @@ import java.net.SocketAddress;
 import java.nio.channels.CancelledKeyException;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -320,11 +321,25 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         return loop instanceof NioEventLoop;
     }
 
+    /**
+     * register,具体逻辑落实的地方，具体的类型是：NioServerSocketChannel
+     * javaChannel():JDK本身channel的地方，这个channel是，NioServerSocketChannel在新建的时候，default-selector-provider
+     * openServerSocketChannel 得到的。
+     * 
+     * register方法，具体的是：SelectionKey register(Selector sel, int ops,Object att)
+     * 这里的：selector是NioEventLoopGroup新建时候，声明的Selector，
+     * 这里的：ops是：The interest set for the resulting key
+     * 这里的：att是：The attachment for the resulting key; may be null。附加物
+     * 
+     * 这里的注册的逻辑就是：NioServerSocketChannel 包含的 javaChannel() 注册到了 NioEventLoopGroup 的成员变量：Selector上面。
+     * 
+     * */
     @Override
     protected void doRegister() throws Exception {
         boolean selected = false;
         for (;;) {
             try {
+            	//selectorKey的attachement就是NioServerSocketChannel
                 selectionKey = javaChannel().register(eventLoop().selector, 0, this);
                 return;
             } catch (CancelledKeyException e) {

@@ -431,7 +431,6 @@ public interface Channel extends AttributeMap, Comparable<Channel> {
      *   <li>{@link #voidPromise()}</li>
      * </ul>
      */
-    //封装JDK的传输操作？？？
     interface Unsafe {
         /**
          * Return the {@link SocketAddress} to which is bound local or

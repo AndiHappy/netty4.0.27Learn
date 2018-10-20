@@ -55,6 +55,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 
     private final Channel parent;
     private final long hashCode = ThreadLocalRandom.current().nextLong();
+    //unsafe的命名比较的奇怪，register就是  channel.unsafe().register(NioEventLoop, promise);
     private final Unsafe unsafe;
     //Channel的成员变量pipeline，其中注册AbstractChannelHandlerContext处理链
     private final DefaultChannelPipeline pipeline;
@@ -66,6 +67,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
     private volatile SocketAddress localAddress;
     private volatile SocketAddress remoteAddress;
     private volatile EventLoop eventLoop;
+    // true if the Channel is registered with an EventLoop.
     private volatile boolean registered;
 
     /** Cache for the string representation of this channel */
@@ -414,16 +416,17 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
             }
 
             AbstractChannel.this.eventLoop = eventLoop;
-
             //register0为什么会被执行两次呢？
             //一次是bootStrapServer启动的时候？
             //一次是telnet 127.0.0.1 8009 的时候？并且在这个时候，childHandler的处理才会初始化
-            //
+   
+            //当先的线程和正在运行的线程是否是同一个线程
             if (eventLoop.inEventLoop()) {
                 register0(promise);
             } else {
                 try {
-                	
+                	logger.info("eventLoop:{}, currentThread:{}.inEventLoop() is false.",eventLoop.toString(),Thread.currentThread().toString());
+                	//OneTimeTaskImpl封装成Thread，这个封装值得看一看
                 	OneTimeTaskImpl task = new OneTimeTaskImpl(promise);
                     eventLoop.execute(task);
                 } catch (Throwable t) {
@@ -451,8 +454,6 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
         }
 
 
-        //void io.netty.channel.AbstractChannel.AbstractUnsafe.register0(ChannelPromise promise)
-        //doRegister()的实现在：io.netty.channel.nio.AbstractNioChannel.doRegister() 中
         private void register0(ChannelPromise promise) {
             try {
                 // check if the channel is still open as it could be closed in the mean time when the register

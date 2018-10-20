@@ -181,11 +181,9 @@ public final class NioEventLoop extends SingleThreadEventLoop {
         return PlatformDependent.newMpscQueue();
     }
 
-    /**
-     * Registers an arbitrary {@link SelectableChannel}, not necessarily created by Netty, to the {@link Selector}
-     * of this event loop.  Once the specified {@link SelectableChannel} is registered, the specified {@code task} will
-     * be executed by this event loop when the {@link SelectableChannel} is ready.
-     */
+//    Registers an arbitrary SelectableChannel, not necessarily created by Netty, 
+//    to the Selector of this event loop. Once the specified SelectableChannel is registered, 
+//    the specified task will be executed by this event loop when the SelectableChannel is ready.
     public void register(final SelectableChannel ch, final int interestOps, final NioTask<?> task) {
         if (ch == null) {
             throw new NullPointerException("ch");

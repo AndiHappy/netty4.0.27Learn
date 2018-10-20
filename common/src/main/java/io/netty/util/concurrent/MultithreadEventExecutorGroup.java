@@ -214,6 +214,9 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
         return isTerminated();
     }
 
+    /**
+     * 判断val是否为2的次方
+     * */
     private static boolean isPowerOfTwo(int val) {
         return (val & -val) == val;
     }
@@ -222,7 +225,7 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
         EventExecutor next();
     }
 
-    //Exector的选择
+    //一个是children.length为2的次方的，一个是普通的选择
     private final class PowerOfTwoEventExecutorChooser implements EventExecutorChooser {
         @Override
         public EventExecutor next() {

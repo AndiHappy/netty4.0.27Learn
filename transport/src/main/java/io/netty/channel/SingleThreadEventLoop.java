@@ -15,10 +15,11 @@
  */
 package io.netty.channel;
 
+import java.util.concurrent.ThreadFactory;
+
+import io.netty.channel.Channel.Unsafe;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.netty.util.concurrent.SingleThreadEventExecutor;
-
-import java.util.concurrent.ThreadFactory;
 
 /**
  * Abstract base class for {@link EventLoop}'s that execute all its submitted tasks in a single thread.
@@ -44,22 +45,15 @@ public abstract class SingleThreadEventLoop extends SingleThreadEventExecutor im
     }
 
     /**
-     * 
-     * 客户端的channel也进行register的注册，这个注册时为了什么呢？
-     * [id: 0x26e72531, /127.0.0.1:61499 => /127.0.0.1:8009]
+     * channel为NioServerSocketChannel,这个方法执行的时候属于实例NioEventLoop，有一个SelectorProvider
      * */
     @Override
     public ChannelFuture register(Channel channel) {
-    	//注册channel到Selector
-    	log.info("{} register:{}",this.getClass().getName(),channel.toString());
+    	// 注册channel到Selector
+    	log.info("{} register para:{}",this.toString(),channel.toString());
         return register(channel, new DefaultChannelPromise(channel, this));
     }
 
-    /**
-     * NioEventLoopGroup在BootStrapServer的bind中，会先调用register方法
-     * 而register方法，有NioEventLoopGroup相应，NioEventLoopGroup根据一定的规则
-     * 选择child数组里面的NioEventLoop来进行处理。
-     * */
     @Override
     public ChannelFuture register(final Channel channel, final ChannelPromise promise) {
         if (channel == null) {
@@ -68,7 +62,20 @@ public abstract class SingleThreadEventLoop extends SingleThreadEventExecutor im
         if (promise == null) {
             throw new NullPointerException("promise");
         }
-
+        /**
+         * 这个地方有很大的疑问：
+         * channel.unsafe() 是NioServerSocketChannel的父类中的一个成员变量，在创建NioServerSocketChannel的时候，这个
+         * 成员变量已经被赋值了： new NioMessageUnsafe().所以unsafe返回的就是NioMessageUnsafe实例，这个是对“channel的
+         * 另外的一次封装”。此处存疑。
+         * 
+         * NioMessageUnsafe的成员函数register方法是：register(EventLoop eventLoop, final ChannelPromise promise)
+         * 这里的EventLoop就是NioEventLoop，拥有一个selectprovider的NioEventLoop。
+         * 
+         * 具体的实现的逻辑在：AbstractUnsafe中。
+         * 
+         * NioMessageUnsafe 《==  AbstractNioUnsafe 《== AbstractUnsafe 《==implements Unsafe
+         * 
+         * */
         channel.unsafe().register(this, promise);
         return promise;
     }

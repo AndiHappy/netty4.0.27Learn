@@ -44,10 +44,7 @@ public class NioEventLoopGroup extends MultithreadEventLoopGroup {
         this(nThreads, null);
     }
 
-    /**
-     * Create a new instance using the specified number of threads, the given {@link ThreadFactory} and the
-     * {@link SelectorProvider} which is returned by {@link SelectorProvider#provider()}.
-     */
+    //可以说所有的NioEventLoopGroup里面的NioEventLoop对应的全部是同一个selectorProvider
     public NioEventLoopGroup(int nThreads, ThreadFactory threadFactory) {
         this(nThreads, threadFactory, SelectorProvider.provider());
     }

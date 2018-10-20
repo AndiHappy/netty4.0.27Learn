@@ -15,7 +15,6 @@ public class ChildHandler extends ChannelInitializer<SocketChannel> {
 	protected void initChannel(SocketChannel ch) throws Exception {
 		 ChannelPipeline p = ch.pipeline();
          p.addLast(new EchoServerHandler());
-		
 	}
 
 }

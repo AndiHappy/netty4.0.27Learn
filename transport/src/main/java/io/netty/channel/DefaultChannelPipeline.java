@@ -58,6 +58,9 @@ final class DefaultChannelPipeline implements ChannelPipeline {
 
     final AbstractChannel channel;
 
+    /**
+     * head 和 tail 全部是已知的内部类，在构建Pipeline的时候，就已经构建完成。形成一个双向链表
+     * */
     final AbstractChannelHandlerContext head;
     final AbstractChannelHandlerContext tail;
 
@@ -126,7 +129,7 @@ final class DefaultChannelPipeline implements ChannelPipeline {
         	//检查是否重名称
             checkDuplicateName(name);
 
-            //handler 被包装成  newCtx 其中group为null 加入ChannelPipeline的处理链
+            //构建handler执行的上下文：this管理handler的，group执行者，name handler的名称，handler具体的实例
             AbstractChannelHandlerContext newCtx = new DefaultChannelHandlerContext(this, group, name, handler);
             addLast0(name, newCtx);
         }
@@ -135,21 +138,21 @@ final class DefaultChannelPipeline implements ChannelPipeline {
     }
 
     /**
-     * 把handler加入链中的处理，比较的奇怪。看操作应该是tail成员的前添加handler
-     * 如果head和tail只当做操作的指示位，并不当做具体的handler，还可以理解
+     * 把handler加入链中的处理，tail成员的前添加handler
+     * tail为固定值
      * */
     private void addLast0(final String name, AbstractChannelHandlerContext newCtx) {
-    	//校验@Sharable之类的东东
+    	//校验@Sharable之类的标注
         checkMultiplicity(newCtx);
-
         AbstractChannelHandlerContext prev = tail.prev;
+        
         newCtx.prev = prev;
         newCtx.next = tail;
         prev.next = newCtx;
         tail.prev = newCtx;
-  
+        //更新名称
         name2ctx.put(name, newCtx);
-
+        //handler添加完成后的调用
         callHandlerAdded(newCtx);
     }
 
@@ -282,8 +285,6 @@ final class DefaultChannelPipeline implements ChannelPipeline {
                 cache.put(handlerType, name);
             }
         }
-
-        
         synchronized (this) {
             // It's not very likely for a user to put more than one handler of the same type, but make sure to avoid
             // any name conflicts.  Note that we don't cache the names generated here.
@@ -299,7 +300,6 @@ final class DefaultChannelPipeline implements ChannelPipeline {
                 }
             }
         }
-
         return name;
     }
 
@@ -482,6 +482,12 @@ final class DefaultChannelPipeline implements ChannelPipeline {
         }
     }
 
+    /***
+     * defaultPipeline中的链表中，已经加入了具体的handler
+     * 这个属于添加成功后的回调函数,这个方法里面有两个比较重要的方法：
+     * isRegistered:Returns true if the Channel is registered with an EventLoop.
+     * inEventLoop:这个函数不清晰，是否在EventLoop里面？？？？
+     * */
     private void callHandlerAdded(final AbstractChannelHandlerContext ctx) {
     	//一开始的时候，Channel还没有注册
         if (ctx.channel().isRegistered() && !ctx.executor().inEventLoop()) {
@@ -499,6 +505,7 @@ final class DefaultChannelPipeline implements ChannelPipeline {
     private void callHandlerAdded0(final AbstractChannelHandlerContext ctx) {
         try {
             ctx.invokedThisChannelRead = false;
+            //下发增加完成的事件，以后具体的说明
             ctx.handler().handlerAdded(ctx);
         } catch (Throwable t) {
             boolean removed = false;

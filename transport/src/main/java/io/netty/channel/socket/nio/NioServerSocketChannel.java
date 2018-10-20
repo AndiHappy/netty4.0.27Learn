@@ -82,7 +82,9 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
      * Create a new instance using the given {@link ServerSocketChannel}.
      */
     public NioServerSocketChannel(ServerSocketChannel channel) {
+    	//一开始注册的是SelectionKey的read事件
         super(null, channel, SelectionKey.OP_ACCEPT);
+        //这里的javaChannel
         config = new NioServerSocketChannelConfig(this, javaChannel().socket());
     }
 

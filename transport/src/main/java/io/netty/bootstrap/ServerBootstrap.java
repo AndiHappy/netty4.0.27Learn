@@ -145,16 +145,21 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         return childGroup;
     }
 
-    
+    /**
+     * 此接口仅仅是初始化
+     * 1. 初始化channe
+     * 2. 初始化channel的Pipeline
+     * 3. 初始化Pipeline上面的handler
+     * */
     @Override
     void init(Channel channel) throws Exception {
-        
-    	//第一步：初始化Channel的属性和选择
+    	//第一步：初始化Channel的option
     	final Map<ChannelOption<?>, Object> options = options();
         synchronized (options) {
             channel.config().setOptions(options);
         }
-
+        
+        //第二步：Channel的属性attr
         final Map<AttributeKey<?>, Object> attrs = attrs();
         synchronized (attrs) {
             for (Entry<AttributeKey<?>, Object> e: attrs.entrySet()) {
@@ -164,11 +169,16 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
             }
         }
         
-        
-        
-//        ChannelPipeline的构建，还是在构造函数中
+        //第三步构建ChannelPipeline的构建，这个是channel上面的“管道”
+        //这里的pipeline()相当于get方法，为channel的一个属性： private final DefaultChannelPipeline pipeline;
+        //声明在AbstractChannel里面，构建还是在channel初始化的时候： pipeline = new DefaultChannelPipeline(this);
+        //这里面的this，就是传入的channel实例。
         ChannelPipeline p = channel.pipeline();
         if (handler() != null) {
+        	/**
+        	 * 这里的handler和childhandler的区别？
+        	 * 都是在启动的Server的时候，设置的handler(class实例)
+        	 * */
             p.addLast(handler());
         }
 
@@ -188,17 +198,21 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
         synchronized (childAttrs) {
             currentChildAttrs = childAttrs.entrySet().toArray(newAttrArray(childAttrs.size()));
         }
-
-        p.addLast(new ChannelInitializer<Channel>() {
+        
+        //这个ChannelInitializer，中的iniChannel，是什么时候执行呢？
+        ChannelInitializer<Channel> ini = new ChannelInitializer<Channel>() {
             @Override
             public void initChannel(Channel ch) throws Exception {
             	//这是把currentChildGroup，currentChildHandler 重新封装成了一个类：ServerBootstrapAcceptor
             	//主要处理acceptor之后的逻辑吗？非常类似ServerBootStrap里面的Binder的处理方式，不知是否是同一个逻辑？
             	//这个方法的调用是在：ChannelInitializer 的 channelRegistered 里面
+            	logger.info("ChannelInitializer begine !");
+            	//加入的是处理Acceptor逻辑处理的
                 ch.pipeline().addLast(new ServerBootstrapAcceptor(
                         currentChildGroup, currentChildHandler, currentChildOptions, currentChildAttrs));
             }
-        });
+        };
+        p.addLast(ini);
     }
 
     @Override

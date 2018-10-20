@@ -26,6 +26,7 @@ import io.netty.channel.ChannelPromise;
 import io.netty.channel.DefaultChannelPromise;
 import io.netty.channel.EventLoop;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.nio.NioEventLoop;
 import io.netty.util.AttributeKey;
 import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.GlobalEventExecutor;
@@ -34,6 +35,7 @@ import io.netty.util.internal.StringUtil;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.nio.channels.spi.SelectorProvider;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -91,6 +93,10 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      * You either use this or {@link #channelFactory(ChannelFactory)} if your
      * {@link Channel} implementation has no no-args constructor.
      */
+    
+    /**
+     * 根据channelClass决定BootstrapChannelFactory
+     * */
     public B channel(Class<? extends C> channelClass) {
         if (channelClass == null) {
             throw new NullPointerException("channelClass");
@@ -270,6 +276,12 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         return doBind(localAddress);
     }
 
+    /**
+     * 服务启动的入口：
+     * 
+     * 1. 初始化Channel，并且注册
+     * 
+     * */
     private ChannelFuture doBind(final SocketAddress localAddress) {
     	//初始化Channel，并且注册 ！！！
         final ChannelFuture regFuture = initAndRegister();
@@ -307,14 +319,30 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     }
 
     /**
-     * 初始化，并且注册 Channel
+     * 初始化，并且注册 Channel.
+     * 
+     * 为什么一开始就是新建这个Channel，为什么不是之间的新建，并且初始化NioEventLoopGroup？，这个channel又起到什么作用？
+     * 
+     * group().register(channel),这个函数叫做注册，究竟是注册什么？谁注册到谁身上？
+     * 
+     * 这里面牵涉到NioEventLoopGroup的新建，这个NioEventLoopGroup实例中包含了什么东西，不过最重要的就是
+     * children，这里children的新建的抽象函数，在MultithreadEventExecutorGroup.newChild(ThreadFactory, Object...)声明
+     * 在具体的NioEventLoopGroup中具体实现，实现的实例就是：new NioEventLoop(this, threadFactory, (SelectorProvider) args[0]);
+     * 
+     * 注意到了(SelectorProvider) args[0] 有一个SelectorProvider。 刚刚一开始新建的Channel也有一个：default-selector-provider。
+     * 另外需要注意的是所有的children的selectorProvider都是同一个实例，这个实例是在NioEventLoopGroup新建的时候，指定的。
+     * 
+     * 下一步就是register
+     * 
      * */
     final ChannelFuture initAndRegister() {
-    	//channelFactory ServerBootStrap中的Channel方法已经指定
-    	//newChannel 直接是类型的Class new instance，这点和原来的差别比较的大
+    	//channelFactory由ServerBootStrap中的channel()方法已经指定
+    	//newChannel 直接是类型的Class new instance，对应的代码是：clazz.newInstance()，这点和原来的差别比较的大
         final Channel channel = channelFactory().newChannel();
         try {
         	//初始化，独立出来了,抽象的方法，必须有子类进行定义
+        	//抽象类的声明： abstract void init(Channel channel) throws Exception;
+            //有具体的子类来进行实现
             init(channel);
         } catch (Throwable t) {
             channel.unsafe().closeForcibly();
@@ -322,19 +350,8 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
             return new DefaultChannelPromise(channel, GlobalEventExecutor.INSTANCE).setFailure(t);
         }
 
-        //初始化完成以后，就是注册
-        //group指定的是：ServerBootStrap中指定的：io.netty.channel.nio.NioEventLoopGroup
-        /**
-         * EventLoopGroup:Special EventExecutorGroup which allows registering Channels that 
-         * get processed for later selection during the event loop.
-         * 
-         * EventLoop：Will handle all the I/O operations for a Channel once registered. 
-         * One EventLoop instance will usually handle more than one Channel but this may depend on implementation details and internals.
-         * 
-         * EventExecutor：The EventExecutor is a special EventExecutorGroup which 
-         * comes with some handy methods to see if a Thread is executed in a event loop. 
-         * Besides this, it also extends the EventExecutorGroup to allow for a generic way to access methods.
-         * */
+        //注册逻辑：ServerBootStrap的方法：group(EventLoopGroup parentGroup, EventLoopGroup childGroup)
+        //group指定的是：parentGroup
         ChannelFuture regFuture = group().register(channel);
         if (regFuture.cause() != null) {
             if (channel.isRegistered()) {

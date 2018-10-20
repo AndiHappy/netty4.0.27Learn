@@ -15,12 +15,14 @@
  */
 package io.netty.channel;
 
+import io.netty.channel.nio.NioEventLoop;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.MultithreadEventExecutorGroup;
 import io.netty.util.internal.SystemPropertyUtil;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
+import java.nio.channels.spi.SelectorProvider;
 import java.util.concurrent.ThreadFactory;
 
 /**
@@ -61,12 +63,17 @@ public abstract class MultithreadEventLoopGroup extends MultithreadEventExecutor
         return (EventLoop) super.next();
     }
 
+    /**
+     * channel 为首先新建立的NioServerSocketChannel
+     * 
+     * register(channel),到底是channel注册到LoopGroup，还是LoopGroup注册到channel？
+     * */
     @Override
     public ChannelFuture register(Channel channel) {
-    	//next() 是选择excetor，选择的是boss中一个线程，已经独立成一个线程类：SingleThreadEventLoop
-    	//SingleThreadEventLoop: Abstract base class for EventLoop's 
-        //that execute all its submitted tasks in a single thread.
-    	//这里的next()方法返回的就是:SingleThreadEventLoop
+    	//next(),选择的是new NioEventLoopGroup(int nThreads)，里面的nThreads，对应的就是children：SingleThreadEventLoop数组
+    	//实际的新建在NioEventLoopGroup中，对应的是：new NioEventLoop(this, threadFactory, (SelectorProvider) args[0])
+        //next()根据nThreads是否为2的次方选择具体的哪一个children,实例就是NioEventLoop类型
+    	//register为SingleThreadEventLoop成员函数
         return next().register(channel);
     }
 
