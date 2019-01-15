@@ -32,6 +32,13 @@ import static io.netty.channel.ChannelOption.*;
 /**
  * The default {@link ServerSocketChannelConfig} implementation.
  */
+//DefaultServerSocketChannelConfig ServerSocketConfig的配置配，
+/**
+ * 1. 关注channel读取期间，内存的分配：
+ *  ByteBufAllocator allocator = config.getAllocator();
+ * io.netty.channel.AdaptiveRecvByteBufAllocator$HandleImpl@3b53a623
+ * 
+ * */
 public class DefaultServerSocketChannelConfig extends DefaultChannelConfig
                                               implements ServerSocketChannelConfig {
 

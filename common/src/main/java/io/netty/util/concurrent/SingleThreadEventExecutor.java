@@ -15,16 +15,14 @@
  */
 package io.netty.util.concurrent;
 
-import io.netty.util.internal.PlatformDependent;
-import io.netty.util.internal.logging.InternalLogger;
-import io.netty.util.internal.logging.InternalLoggerFactory;
-
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.PriorityQueue;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -32,6 +30,13 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.netty.util.internal.PlatformDependent;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 
 /**
  * Abstract base class for {@link EventExecutor}'s that execute all its submitted tasks in a single thread.
@@ -47,6 +52,7 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
     private static final int ST_SHUTTING_DOWN = 3;
     private static final int ST_SHUTDOWN = 4;
     private static final int ST_TERMINATED = 5;
+    private static final Logger log = LoggerFactory.getLogger(SingleThreadEventExecutor.class);
 
     private static final Runnable WAKEUP_TASK = new Runnable() {
         @Override
@@ -86,13 +92,18 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
 
     /**
      * Create a new instance
-     *
-     * @param parent            the {@link EventExecutorGroup} which is the parent of this instance and belongs to it
-     * @param threadFactory     the {@link ThreadFactory} which will be used for the used {@link Thread}
-     * @param addTaskWakesUp    {@code true} if and only if invocation of {@link #addTask(Runnable)} will wake up the
-     *                          executor thread
+     * @param parent            当前的NioEventLoop的归属者，就是BootStrapServer里面声明的NioEventLoopGroup
+     * @param threadFactory     归属者里面的threadFactory，默认的是 DefaultThreadFactory
+     * @param addTaskWakesUp    新建的情况下为false
+     * 
+     * 
+     * 单个线程事件执行器:SingleThreadEventExecutor,实例化的过程：
+     * 设置parent：
+     * 设置执行的thread：新建了一个线程：
+     *    
+     * 设置taskQueue：新建立了一个new LinkedBlockingQueue<Runnable>()
+     * 
      */
-    //并不是一个线程池，只是一个线程，signal Thread
     protected SingleThreadEventExecutor(
             EventExecutorGroup parent, ThreadFactory threadFactory, boolean addTaskWakesUp) {
 
@@ -101,20 +112,25 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         }
 
         this.parent = parent;
-        //初始化 新建的时候，addTaskWakesUp为false
+        
+        //初始化 新建的时候，addTaskWakesUp为false，true if and only if invocation of addTask(Runnable) will wake up the executor thread
+        //这个应该是标志位，当标志位为true的时候，关注一下addTask，这个方法！
         this.addTaskWakesUp = addTaskWakesUp;
 
         //新建了一个线程！！！一开始并且没有执行
-        //这个thread的线程，是判断inEventLoop的依据
+        //这个thread的线程，是判断inEventLoop的依据     
         thread = threadFactory.newThread(new Runnable() {
             @Override
-            public void run() {
+            public void run() { 
                 boolean success = false;
-                //更新上次执行的时间
+                //更新上次执行的时间，是为了ScheduledFutureTask的清理？？
                 updateLastExecutionTime();
                 try {
-                	//调用run方法，不过以这种方式启动SingleThreadEventExecutor的run方法，也算一种特色
-                	//run为抽象的方法，有NioEventLoop实现
+                	/**
+                	 * run(); 如果是这样方式调用run方法，调用的是 线程对应的run方法。
+                	 * SingleThreadEventExecutor.this.run(); 这种方式启动SingleThreadEventExecutor的run方法
+                	 * */
+                	logger.info("2.4 线程启动以后，调用:{} run 方法。",SingleThreadEventExecutor.this);
                     SingleThreadEventExecutor.this.run();
                     success = true;
                 } catch (Throwable t) {
@@ -350,6 +366,13 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
      * the tasks in the task queue and returns if it ran longer than {@code timeoutNanos}.
      */
     protected boolean runAllTasks(long timeoutNanos) {
+    	/**
+    	 * scheduledTaskQueue里面的任务，挪到 taskQueue中
+    	 * 其中：
+    	 *   scheduledTaskQueue 是： PriorityQueue<ScheduledFutureTask<?>> 类型
+    	 *   taskQueue是：LinkedBlockingQueue<Runnable> 类型
+    	 * taskQueue.add(scheduledTask)
+    	 * */
         fetchFromScheduledTaskQueue();
         Runnable task = pollTask();
         if (task == null) {
@@ -683,6 +706,20 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         return isTerminated();
     }
 
+    /**
+     * SignalThreadEventExecutor 的执行的逻辑：
+     * 
+     * SignalThreadEventExecutor 执行的过程中，并不管task的具体的逻辑，只是简单的当做一个任务来进行处理。处理的机制相对有线程池来说，还是
+     * 有点区别的，如果一个线程池里面的一个线程，再次向在这个线程池提交了任务，线程池会把这个最新提交的任务作为一个新的任务进行处理。但是SignalThreadEventExecutor
+     * 可能还是在同一个线程里面进行处理，这也是类名称的来源：SignalThreadEventExecutor
+     * 
+     * 如果不在当前的执行的线程，说明线程还没有启动，首先启动线程：startThread
+     * 
+     * 调用的实例是：把register作为一个线程，增加到NioEventLoop里面的Excute的参数。
+     * 调用的过程：
+     * 如果在EventLoop内，直接的增加到taskQueue中，
+     * 如果不在EventLoop内，需要首先启动线程，这个线程就是Thread，成员变量的Thread
+     * */
     @Override
     public void execute(Runnable task) {
         if (task == null) {
@@ -693,9 +730,9 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
         if (inEventLoop) {
             addTask(task);
         } else {
-        	//标记STATE_UPDATER的状态，并且start thread，调用了： thread.start();
+        	// 启动线程，这个线程需要好好的研究一下
             startThread();
-            addTask(task);//把任务加入taskQueue
+            addTask(task);//把任务加入taskQueue,第一个的任务是：
             if (isShutdown() && removeTask(task)) {
                 reject();
             }
@@ -723,19 +760,32 @@ public abstract class SingleThreadEventExecutor extends AbstractScheduledEventEx
     private void startThread() {
     	// ST_NOT_STARTED 状态码，标识线程还没有启动
         if (STATE_UPDATER.get(this) == ST_NOT_STARTED) {
-        	//没有启动的情况下，启动线程SignalThread
-        	//先设置状态
             if (STATE_UPDATER.compareAndSet(this, ST_NOT_STARTED, ST_STARTED)) {
-            	//??安排任务??
-                schedule(new ScheduledFutureTask<Void>(this, Executors.<Void>callable(new PurgeTask(), null),ScheduledFutureTask.deadlineNanos(SCHEDULE_PURGE_INTERVAL), -SCHEDULE_PURGE_INTERVAL));
-//                logger.info("schedule over !!!!");
-                //线程任务启动
+            	
+            	//只是适配器的接口，由Runnable 转化为 Callable 接口，主要的逻辑在PurgeTask里面：清理scheduledTaskQueue中过期的任务
+            	Callable<Void> callnable = Executors.<Void>callable(new PurgeTask(), null);
+            	
+            	//封装为异步任务，这个任务的run方法，保证scheduledTaskQueue永不为null，为null的情况下，就会再次的添加到scheduledTaskQueue中
+            	ScheduledFutureTask<Void> scheduledFutureTask = new ScheduledFutureTask<Void>(
+            			this,
+            			callnable,
+            			//截止时间
+            			ScheduledFutureTask.deadlineNanos(SCHEDULE_PURGE_INTERVAL), 
+            			//持续时间
+            			-SCHEDULE_PURGE_INTERVAL
+            			);
+            	//task 直接的加入scheduledTaskQueue中
+                schedule(scheduledFutureTask);
+                
+                log.info("2.3 启动线程之前scheduledTaskQueue增加了PurgeTask，然后启动NioEventLoop的thread。运行的实例是:{}",this);
                 thread.start();
-//                logger.info("thread.start !!!!");
             }
         }
     }
 
+    /**
+     * Purge:清洗，净化，清洗内存数据
+     * */
     private final class PurgeTask implements Runnable {
         @Override
         public void run() {

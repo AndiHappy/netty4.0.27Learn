@@ -180,9 +180,10 @@ public class LoggingHandler extends ChannelDuplexHandler {
     @Override
     public void channelRegistered(ChannelHandlerContext ctx)
             throws Exception {
-        if (logger.isEnabled(internalLevel)) {
-            logger.log(internalLevel, format(ctx, "REGISTERED"));
-        }
+//        if (logger.isEnabled(internalLevel)) {
+//            logger.log(internalLevel, format(ctx, "REGISTERED"));
+//        }
+    	  logger.log(internalLevel, format(ctx, "REGISTERED"));
         super.channelRegistered(ctx);
     }
 
@@ -192,6 +193,7 @@ public class LoggingHandler extends ChannelDuplexHandler {
         if (logger.isEnabled(internalLevel)) {
             logger.log(internalLevel, format(ctx, "UNREGISTERED"));
         }
+        logger.log(internalLevel, format(ctx, "UNREGISTERED"));
         super.channelUnregistered(ctx);
     }
 
@@ -201,6 +203,7 @@ public class LoggingHandler extends ChannelDuplexHandler {
         if (logger.isEnabled(internalLevel)) {
             logger.log(internalLevel, format(ctx, "ACTIVE"));
         }
+        logger.log(internalLevel, format(ctx, "ACTIVE"));
         super.channelActive(ctx);
     }
 
@@ -210,6 +213,7 @@ public class LoggingHandler extends ChannelDuplexHandler {
         if (logger.isEnabled(internalLevel)) {
             logger.log(internalLevel, format(ctx, "INACTIVE"));
         }
+        logger.log(internalLevel, format(ctx, "INACTIVE"));
         super.channelInactive(ctx);
     }
 
@@ -219,6 +223,7 @@ public class LoggingHandler extends ChannelDuplexHandler {
         if (logger.isEnabled(internalLevel)) {
             logger.log(internalLevel, format(ctx, "EXCEPTION: " + cause), cause);
         }
+        logger.log(internalLevel, format(ctx, "EXCEPTION: " + cause), cause);
         super.exceptionCaught(ctx, cause);
     }
 
@@ -228,6 +233,7 @@ public class LoggingHandler extends ChannelDuplexHandler {
         if (logger.isEnabled(internalLevel)) {
             logger.log(internalLevel, format(ctx, "USER_EVENT: " + evt));
         }
+        logger.log(internalLevel, format(ctx, "USER_EVENT: " + evt));
         super.userEventTriggered(ctx, evt);
     }
 
@@ -250,6 +256,7 @@ public class LoggingHandler extends ChannelDuplexHandler {
         if (logger.isEnabled(internalLevel)) {
             logger.log(internalLevel, format(ctx, "CONNECT(" + remoteAddress + ", " + localAddress + ')'));
         }
+        logger.log(internalLevel, format(ctx, "CONNECT(" + remoteAddress + ", " + localAddress + ')'));
         super.connect(ctx, remoteAddress, localAddress, promise);
     }
 
@@ -259,6 +266,7 @@ public class LoggingHandler extends ChannelDuplexHandler {
         if (logger.isEnabled(internalLevel)) {
             logger.log(internalLevel, format(ctx, "DISCONNECT()"));
         }
+        logger.log(internalLevel, format(ctx, "DISCONNECT()"));
         super.disconnect(ctx, promise);
     }
 
@@ -268,6 +276,7 @@ public class LoggingHandler extends ChannelDuplexHandler {
         if (logger.isEnabled(internalLevel)) {
             logger.log(internalLevel, format(ctx, "CLOSE()"));
         }
+        logger.log(internalLevel, format(ctx, "CLOSE()"));
         super.close(ctx, promise);
     }
 
@@ -277,6 +286,7 @@ public class LoggingHandler extends ChannelDuplexHandler {
         if (logger.isEnabled(internalLevel)) {
             logger.log(internalLevel, format(ctx, "DEREGISTER()"));
         }
+        logger.log(internalLevel, format(ctx, "DEREGISTER()"));
         super.deregister(ctx, promise);
     }
 
@@ -297,6 +307,7 @@ public class LoggingHandler extends ChannelDuplexHandler {
         if (logger.isEnabled(internalLevel)) {
             logger.log(internalLevel, format(ctx, "FLUSH"));
         }
+        logger.log(internalLevel, format(ctx, "FLUSH"));
         ctx.flush();
     }
 

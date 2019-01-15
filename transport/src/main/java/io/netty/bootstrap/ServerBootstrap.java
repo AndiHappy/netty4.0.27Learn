@@ -15,6 +15,8 @@
  */
 package io.netty.bootstrap;
 
+import java.text.DateFormat;
+import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -38,327 +40,361 @@ import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
 /**
- * {@link Bootstrap} sub-class which allows easy bootstrap of {@link ServerChannel}
+ * {@link Bootstrap} sub-class which allows easy bootstrap of
+ * {@link ServerChannel}
  *
  */
 public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerChannel> {
 
-    private static final InternalLogger logger = InternalLoggerFactory.getInstance(ServerBootstrap.class);
+	private static final InternalLogger logger = InternalLoggerFactory.getInstance(ServerBootstrap.class);
 
-    private final Map<ChannelOption<?>, Object> childOptions = new LinkedHashMap<ChannelOption<?>, Object>();
-    private final Map<AttributeKey<?>, Object> childAttrs = new LinkedHashMap<AttributeKey<?>, Object>();
-    private volatile EventLoopGroup childGroup;
-    private volatile ChannelHandler childHandler;
+	private final Map<ChannelOption<?>, Object> childOptions = new LinkedHashMap<ChannelOption<?>, Object>();
+	private final Map<AttributeKey<?>, Object> childAttrs = new LinkedHashMap<AttributeKey<?>, Object>();
+	private volatile EventLoopGroup childGroup;
+	private volatile ChannelHandler childHandler;
 
-    public ServerBootstrap() { }
+	public ServerBootstrap() {
+    	log.info("Netty Server construct begine:  {}", DateFormat.getDateTimeInstance().format(new Date()));
+	}
 
-    private ServerBootstrap(ServerBootstrap bootstrap) {
-        super(bootstrap);
-        childGroup = bootstrap.childGroup;
-        childHandler = bootstrap.childHandler;
-        synchronized (bootstrap.childOptions) {
-            childOptions.putAll(bootstrap.childOptions);
-        }
-        synchronized (bootstrap.childAttrs) {
-            childAttrs.putAll(bootstrap.childAttrs);
-        }
-    }
+	private ServerBootstrap(ServerBootstrap bootstrap) {
+		super(bootstrap);
+		childGroup = bootstrap.childGroup;
+		childHandler = bootstrap.childHandler;
+		synchronized (bootstrap.childOptions) {
+			childOptions.putAll(bootstrap.childOptions);
+		}
+		synchronized (bootstrap.childAttrs) {
+			childAttrs.putAll(bootstrap.childAttrs);
+		}
+	}
 
-    /**
-     * Specify the {@link EventLoopGroup} which is used for the parent (acceptor) and the child (client).
-     */
-    @Override
-    public ServerBootstrap group(EventLoopGroup group) {
-        return group(group, group);
-    }
+	/**
+	 * Specify the {@link EventLoopGroup} which is used for the parent
+	 * (acceptor) and the child (client).
+	 */
+	@Override
+	public ServerBootstrap group(EventLoopGroup group) {
+		return group(group, group);
+	}
 
-    /**
-     * Set the {@link EventLoopGroup} for the parent (acceptor) and the child (client). These
-     * {@link EventLoopGroup}'s are used to handle all the events and IO for {@link ServerChannel} and
-     * {@link Channel}'s.
-     */
-    public ServerBootstrap group(EventLoopGroup parentGroup, EventLoopGroup childGroup) {
-        super.group(parentGroup);
-        if (childGroup == null) {
-            throw new NullPointerException("childGroup");
-        }
-        if (this.childGroup != null) {
-            throw new IllegalStateException("childGroup set already");
-        }
-        this.childGroup = childGroup;
-        return this;
-    }
+	/**
+	 * Set the {@link EventLoopGroup} for the parent (acceptor) and the child
+	 * (client). These {@link EventLoopGroup}'s are used to handle all the
+	 * events and IO for {@link ServerChannel} and {@link Channel}'s.
+	 */
+	public ServerBootstrap group(EventLoopGroup parentGroup, EventLoopGroup childGroup) {
+		super.group(parentGroup);
+		if (childGroup == null) {
+			throw new NullPointerException("childGroup");
+		}
+		if (this.childGroup != null) {
+			throw new IllegalStateException("childGroup set already");
+		}
+		this.childGroup = childGroup;
+		return this;
+	}
 
-    /**
-     * Allow to specify a {@link ChannelOption} which is used for the {@link Channel} instances once they get created
-     * (after the acceptor accepted the {@link Channel}). Use a value of {@code null} to remove a previous set
-     * {@link ChannelOption}.
-     */
-    public <T> ServerBootstrap childOption(ChannelOption<T> childOption, T value) {
-        if (childOption == null) {
-            throw new NullPointerException("childOption");
-        }
-        if (value == null) {
-            synchronized (childOptions) {
-                childOptions.remove(childOption);
-            }
-        } else {
-            synchronized (childOptions) {
-                childOptions.put(childOption, value);
-            }
-        }
-        return this;
-    }
+	/**
+	 * Allow to specify a {@link ChannelOption} which is used for the
+	 * {@link Channel} instances once they get created (after the acceptor
+	 * accepted the {@link Channel}). Use a value of {@code null} to remove a
+	 * previous set {@link ChannelOption}.
+	 */
+	public <T> ServerBootstrap childOption(ChannelOption<T> childOption, T value) {
+		if (childOption == null) {
+			throw new NullPointerException("childOption");
+		}
+		if (value == null) {
+			synchronized (childOptions) {
+				childOptions.remove(childOption);
+			}
+		} else {
+			synchronized (childOptions) {
+				childOptions.put(childOption, value);
+			}
+		}
+		return this;
+	}
 
-    /**
-     * Set the specific {@link AttributeKey} with the given value on every child {@link Channel}. If the value is
-     * {@code null} the {@link AttributeKey} is removed
-     */
-    public <T> ServerBootstrap childAttr(AttributeKey<T> childKey, T value) {
-        if (childKey == null) {
-            throw new NullPointerException("childKey");
-        }
-        if (value == null) {
-            childAttrs.remove(childKey);
-        } else {
-            childAttrs.put(childKey, value);
-        }
-        return this;
-    }
+	/**
+	 * Set the specific {@link AttributeKey} with the given value on every child
+	 * {@link Channel}. If the value is {@code null} the {@link AttributeKey} is
+	 * removed
+	 */
+	public <T> ServerBootstrap childAttr(AttributeKey<T> childKey, T value) {
+		if (childKey == null) {
+			throw new NullPointerException("childKey");
+		}
+		if (value == null) {
+			childAttrs.remove(childKey);
+		} else {
+			childAttrs.put(childKey, value);
+		}
+		return this;
+	}
 
-    /**
-     * Set the {@link ChannelHandler} which is used to serve the request for the {@link Channel}'s.
-     */
-    public ServerBootstrap childHandler(ChannelHandler childHandler) {
-        if (childHandler == null) {
-            throw new NullPointerException("childHandler");
-        }
-        this.childHandler = childHandler;
-        return this;
-    }
+	/**
+	 * Set the {@link ChannelHandler} which is used to serve the request for the
+	 * {@link Channel}'s.
+	 */
+	public ServerBootstrap childHandler(ChannelHandler childHandler) {
+		if (childHandler == null) {
+			throw new NullPointerException("childHandler");
+		}
+		this.childHandler = childHandler;
+		return this;
+	}
 
-    /**
-     * Return the configured {@link EventLoopGroup} which will be used for the child channels or {@code null}
-     * if non is configured yet.
-     */
-    public EventLoopGroup childGroup() {
-        return childGroup;
-    }
+	/**
+	 * Return the configured {@link EventLoopGroup} which will be used for the
+	 * child channels or {@code null} if non is configured yet.
+	 */
+	public EventLoopGroup childGroup() {
+		return childGroup;
+	}
 
-    /**
-     * 此接口仅仅是初始化
-     * 1. 初始化channe
-     * 2. 初始化channel的Pipeline
-     * 3. 初始化Pipeline上面的handler
-     * */
-    @Override
-    void init(Channel channel) throws Exception {
-    	//第一步：初始化Channel的option
-    	final Map<ChannelOption<?>, Object> options = options();
-        synchronized (options) {
-            channel.config().setOptions(options);
-        }
-        
-        //第二步：Channel的属性attr
-        final Map<AttributeKey<?>, Object> attrs = attrs();
-        synchronized (attrs) {
-            for (Entry<AttributeKey<?>, Object> e: attrs.entrySet()) {
-                @SuppressWarnings("unchecked")
-                AttributeKey<Object> key = (AttributeKey<Object>) e.getKey();
-                channel.attr(key).set(e.getValue());
-            }
-        }
-        
-        //第三步构建ChannelPipeline的构建，这个是channel上面的“管道”
-        //这里的pipeline()相当于get方法，为channel的一个属性： private final DefaultChannelPipeline pipeline;
-        //声明在AbstractChannel里面，构建还是在channel初始化的时候： pipeline = new DefaultChannelPipeline(this);
-        //这里面的this，就是传入的channel实例。
-        ChannelPipeline p = channel.pipeline();
-        if (handler() != null) {
-        	/**
-        	 * 这里的handler和childhandler的区别？
-        	 * 都是在启动的Server的时候，设置的handler(class实例)
-        	 * */
-            p.addLast(handler());
-        }
+	/**
+	 * 此接口仅仅是初始化
+	 * 
+	 *  1. 初始化channe 
+	 *  2. 初始化channel的Pipeline 
+	 *  3. 初始化Pipeline上面的handler:处理链接接入的一次性的hander：ChannelInitializer，逻辑中pipeline加入了：ServerBootstrapAcceptor
+	 */
+	@Override
+	void init(Channel channel) throws Exception {
+		// 第一步：初始化Channel的option
+		final Map<ChannelOption<?>, Object> options = options();
+		synchronized (options) {
+			channel.config().setOptions(options);
+		}
 
-        final EventLoopGroup currentChildGroup = childGroup;
-        //ServerBootStrap的childHandler方法，指定了 childHandler
-        final ChannelHandler currentChildHandler = childHandler;
-        
-        //这里面有两个handler，因为ServerBootStrap继承自：AbstractBootstrap
-        //AbstractBootstrap 中有一个成员变量：volatile ChannelHandler handler
-        //ServerBootStrap 有一个成员变量： volatile ChannelHandler childHandler
-        
-        final Entry<ChannelOption<?>, Object>[] currentChildOptions;
-        final Entry<AttributeKey<?>, Object>[] currentChildAttrs;
-        synchronized (childOptions) {
-            currentChildOptions = childOptions.entrySet().toArray(newOptionArray(childOptions.size()));
-        }
-        synchronized (childAttrs) {
-            currentChildAttrs = childAttrs.entrySet().toArray(newAttrArray(childAttrs.size()));
-        }
-        
-        //这个ChannelInitializer，中的iniChannel，是什么时候执行呢？
-        ChannelInitializer<Channel> ini = new ChannelInitializer<Channel>() {
-            @Override
-            public void initChannel(Channel ch) throws Exception {
-            	//这是把currentChildGroup，currentChildHandler 重新封装成了一个类：ServerBootstrapAcceptor
-            	//主要处理acceptor之后的逻辑吗？非常类似ServerBootStrap里面的Binder的处理方式，不知是否是同一个逻辑？
-            	//这个方法的调用是在：ChannelInitializer 的 channelRegistered 里面
-            	logger.info("ChannelInitializer begine !");
-            	//加入的是处理Acceptor逻辑处理的
-                ch.pipeline().addLast(new ServerBootstrapAcceptor(
-                        currentChildGroup, currentChildHandler, currentChildOptions, currentChildAttrs));
-            }
-        };
-        p.addLast(ini);
-    }
+		// 第二步：Channel的属性attr
+		final Map<AttributeKey<?>, Object> attrs = attrs();
+		synchronized (attrs) {
+			for (Entry<AttributeKey<?>, Object> e : attrs.entrySet()) {
+				@SuppressWarnings("unchecked")
+				AttributeKey<Object> key = (AttributeKey<Object>) e.getKey();
+				channel.attr(key).set(e.getValue());
+			}
+		}
 
-    @Override
-    public ServerBootstrap validate() {
-        super.validate();
-        if (childHandler == null) {
-            throw new IllegalStateException("childHandler not set");
-        }
-        //parentGroup 在上面已经校验过了，如果childHandler没有设置的话，parentGroup替代
-        if (childGroup == null) {
-            logger.warn("childGroup is not set. Using parentGroup instead.");
-            childGroup = group();
-        }
-        return this;
-    }
+		/**
+		 * 第三步构建ChannelPipeline的构建，这个是channel上面的“管道”
+		 * 这里的pipeline()相当于get方法，为channel的一个属性： private final DefaultChannelPipeline(this); //this:传入的channel实例。
+		 * */
+		ChannelPipeline p = channel.pipeline();
+		if (handler() != null) {
+			
+			/**
+			 * 这里的handler和childhandler的区别？ 都是在启动的Server的时候，设置的handler(class实例)
+			 * handler：ChannelHandler
+			 * addLast: 把handler插入DefaultChannelPipeline的tail handler之前
+			 */
+			p.addLast(handler());
+		}
 
-    @SuppressWarnings("unchecked")
-    private static Entry<ChannelOption<?>, Object>[] newOptionArray(int size) {
-        return new Entry[size];
-    }
+		final EventLoopGroup currentChildGroup = childGroup;
+		// ServerBootStrap的childHandler方法，指定了 childHandler
+		final ChannelHandler currentChildHandler = childHandler;
 
-    @SuppressWarnings("unchecked")
-    private static Entry<AttributeKey<?>, Object>[] newAttrArray(int size) {
-        return new Entry[size];
-    }
+		/**
+		 * 这里面有两个handler，因为ServerBootStrap继承自：AbstractBootstrap
+		 * AbstractBootstrap 中有一个成员变量：volatile ChannelHandler handler
+		 * ServerBootStrap 有一个成员变量： volatile ChannelHandler childHandler
+		 * */
 
-    private static class ServerBootstrapAcceptor extends ChannelInboundHandlerAdapter {
+		final Entry<ChannelOption<?>, Object>[] currentChildOptions;
+		final Entry<AttributeKey<?>, Object>[] currentChildAttrs;
+		synchronized (childOptions) {
+			currentChildOptions = childOptions.entrySet().toArray(newOptionArray(childOptions.size()));
+		}
+		synchronized (childAttrs) {
+			currentChildAttrs = childAttrs.entrySet().toArray(newAttrArray(childAttrs.size()));
+		}
 
-        private final EventLoopGroup childGroup;
-        private final ChannelHandler childHandler;
-        private final Entry<ChannelOption<?>, Object>[] childOptions;
-        private final Entry<AttributeKey<?>, Object>[] childAttrs;
+		// 这个ChannelInitializer，中的iniChannel，是什么时候执行呢？
+		
+		/**
+		 *  ChannelInitializer 非常的有意思:
+		 *  extends ChannelInboundHandlerAdapter，重载的是：channelRegistered(ChannelHandlerContext ctx)
+		 *  具体的逻辑就是：
+		 *  1. initChannel((C) ctx.channel());  // 调用抽象方法，这个有具体的子类来进行实现，初始化channel
+		 *  2. pipeline.remove(this); // 然后从pipeline中把this，也就是这个ChannelInitializer 对应的实例，删除了。
+		 *  从逻辑上面说，也属于正常，因为这个是类的目的就是为了初始化channel，完成任务以后，以为初始化操作只执行了一次，所以
+		 *  直接的删除了。
+		 *  3. ctx.fireChannelRegistered(); // fire channel已经注册完成的事件。
+		 *  
+		 * */
+		ChannelInitializer<Channel> ini = new ChannelInitializer<Channel>() {
+			@Override
+			public void initChannel(Channel ch) throws Exception {
+				logger.info("II. 增加ServerBootstrapAcceptor 到pipeline 中。 !");
+				/**
+				 * channel的初始化的过程逻辑：handler中被加入了：ServerBootstrapAcceptor
+				 */
+				ch.pipeline().addLast(new ServerBootstrapAcceptor(currentChildGroup, currentChildHandler,
+						currentChildOptions, currentChildAttrs));
+			}
+		};
+		
+		/**
+		 * ini 是作为一个handler加入了DefaultChannelPipeline，但是具体的类型是一个匿名类，实现的是ChannelInitializer
+		 * */
+		p.addLast(ini);
+	}
 
-        ServerBootstrapAcceptor(
-                EventLoopGroup childGroup, ChannelHandler childHandler,
-                Entry<ChannelOption<?>, Object>[] childOptions, Entry<AttributeKey<?>, Object>[] childAttrs) {
-            this.childGroup = childGroup;
-            this.childHandler = childHandler;
-            this.childOptions = childOptions;
-            this.childAttrs = childAttrs;
-        }
+	@Override
+	public ServerBootstrap validate() {
+		super.validate();
+		if (childHandler == null) {
+			throw new IllegalStateException("childHandler not set");
+		}
+		// parentGroup 在上面已经校验过了，如果childHandler没有设置的话，parentGroup替代
+		if (childGroup == null) {
+			logger.warn("childGroup is not set. Using parentGroup instead.");
+			childGroup = group();
+		}
+		return this;
+	}
 
-        @Override
-        @SuppressWarnings("unchecked")
-        public void channelRead(ChannelHandlerContext ctx, Object msg) {
-            final Channel child = (Channel) msg;
+	@SuppressWarnings("unchecked")
+	private static Entry<ChannelOption<?>, Object>[] newOptionArray(int size) {
+		return new Entry[size];
+	}
 
-            child.pipeline().addLast(childHandler);
+	@SuppressWarnings("unchecked")
+	private static Entry<AttributeKey<?>, Object>[] newAttrArray(int size) {
+		return new Entry[size];
+	}
 
-            for (Entry<ChannelOption<?>, Object> e: childOptions) {
-                try {
-                    if (!child.config().setOption((ChannelOption<Object>) e.getKey(), e.getValue())) {
-                        logger.warn("Unknown channel option: " + e);
-                    }
-                } catch (Throwable t) {
-                    logger.warn("Failed to set a channel option: " + child, t);
-                }
-            }
+	/**
+	 * 这个内部类，可以看到做是处理客户端connect事件的内部的handler。
+	 * 
+	 */
+	private static class ServerBootstrapAcceptor extends ChannelInboundHandlerAdapter {
 
-            for (Entry<AttributeKey<?>, Object> e: childAttrs) {
-                child.attr((AttributeKey<Object>) e.getKey()).set(e.getValue());
-            }
+		private final EventLoopGroup childGroup;
+		private final ChannelHandler childHandler;
+		private final Entry<ChannelOption<?>, Object>[] childOptions;
+		private final Entry<AttributeKey<?>, Object>[] childAttrs;
 
-            try {
-            	//这个就是client端，进行了注册io.netty.channel.nio.NioEventLoopGroup进行的register的方法
-            	ChannelFuture future = childGroup.register(child);
-            	future.addListener(new ChannelFutureListener() {
-                    @Override
-                    public void operationComplete(ChannelFuture future) throws Exception {
-                        if (!future.isSuccess()) {
-                            forceClose(child, future.cause());
-                        }
-                    }
-                });
-            } catch (Throwable t) {
-                forceClose(child, t);
-            }
-        }
+		ServerBootstrapAcceptor(EventLoopGroup childGroup, ChannelHandler childHandler,
+				Entry<ChannelOption<?>, Object>[] childOptions, Entry<AttributeKey<?>, Object>[] childAttrs) {
+			this.childGroup = childGroup;
+			this.childHandler = childHandler;
+			this.childOptions = childOptions;
+			this.childAttrs = childAttrs;
+		}
 
-        private static void forceClose(Channel child, Throwable t) {
-            child.unsafe().closeForcibly();
-            logger.warn("Failed to register an accepted channel: " + child, t);
-        }
+		@Override
+		@SuppressWarnings("unchecked")
+		public void channelRead(ChannelHandlerContext ctx, Object msg) {
+			final Channel child = (Channel) msg;
+			logger.info("ServerBootstrapAcceptor channel type: {}",child.getClass().getName());
+			child.pipeline().addLast(childHandler);
+			for (Entry<ChannelOption<?>, Object> e : childOptions) {
+				try {
+					if (!child.config().setOption((ChannelOption<Object>) e.getKey(), e.getValue())) {
+						logger.warn("Unknown channel option: " + e);
+					}
+				} catch (Throwable t) {
+					logger.warn("Failed to set a channel option: " + child, t);
+				}
+			}
 
-        @Override
-        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-            final ChannelConfig config = ctx.channel().config();
-            if (config.isAutoRead()) {
-                // stop accept new connections for 1 second to allow the channel to recover
-                // See https://github.com/netty/netty/issues/1328
-                config.setAutoRead(false);
-                ctx.channel().eventLoop().schedule(new Runnable() {
-                    @Override
-                    public void run() {
-                       config.setAutoRead(true);
-                    }
-                }, 1, TimeUnit.SECONDS);
-            }
-            // still let the exceptionCaught event flow through the pipeline to give the user
-            // a chance to do something with it
-            ctx.fireExceptionCaught(cause);
-        }
-    }
+			for (Entry<AttributeKey<?>, Object> e : childAttrs) {
+				child.attr((AttributeKey<Object>) e.getKey()).set(e.getValue());
+			}
 
-    @Override
-    @SuppressWarnings("CloneDoesntCallSuperClone")
-    public ServerBootstrap clone() {
-        return new ServerBootstrap(this);
-    }
+			try {
+				// 同样的逻辑NioEventLoopGroup提供的register，但是这里的NioEventLoopGroup，表示的是worker线程组。
+				// 这里就把NioSocketChannel注册到代表着
+				// worker事件组的：NioEventLoopGroup下面的某一个NioEventLoop
+		        log.info("channel:{} ===============register============> childGroup:{} ",child,childGroup);
+				ChannelFuture future = childGroup.register(child);
+				future.addListener(new ChannelFutureListener() {
+					@Override
+					public void operationComplete(ChannelFuture future) throws Exception {
+						if (!future.isSuccess()) {
+							forceClose(child, future.cause());
+						}
+					}
+				});
+			} catch (Throwable t) {
+				forceClose(child, t);
+			}
+		}
 
-    @Override
-    public String toString() {
-        StringBuilder buf = new StringBuilder(super.toString());
-        buf.setLength(buf.length() - 1);
-        buf.append(", ");
-        if (childGroup != null) {
-            buf.append("childGroup: ");
-            buf.append(StringUtil.simpleClassName(childGroup));
-            buf.append(", ");
-        }
-        synchronized (childOptions) {
-            if (!childOptions.isEmpty()) {
-                buf.append("childOptions: ");
-                buf.append(childOptions);
-                buf.append(", ");
-            }
-        }
-        synchronized (childAttrs) {
-            if (!childAttrs.isEmpty()) {
-                buf.append("childAttrs: ");
-                buf.append(childAttrs);
-                buf.append(", ");
-            }
-        }
-        if (childHandler != null) {
-            buf.append("childHandler: ");
-            buf.append(childHandler);
-            buf.append(", ");
-        }
-        if (buf.charAt(buf.length() - 1) == '(') {
-            buf.append(')');
-        } else {
-            buf.setCharAt(buf.length() - 2, ')');
-            buf.setLength(buf.length() - 1);
-        }
+		private static void forceClose(Channel child, Throwable t) {
+			child.unsafe().closeForcibly();
+			logger.warn("Failed to register an accepted channel: " + child, t);
+		}
 
-        return buf.toString();
-    }
+		@Override
+		public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+			final ChannelConfig config = ctx.channel().config();
+			if (config.isAutoRead()) {
+				// stop accept new connections for 1 second to allow the channel
+				// to recover
+				// See https://github.com/netty/netty/issues/1328
+				config.setAutoRead(false);
+				ctx.channel().eventLoop().schedule(new Runnable() {
+					@Override
+					public void run() {
+						config.setAutoRead(true);
+					}
+				}, 1, TimeUnit.SECONDS);
+			}
+			// still let the exceptionCaught event flow through the pipeline to
+			// give the user
+			// a chance to do something with it
+			ctx.fireExceptionCaught(cause);
+		}
+	}
+
+	@Override
+	@SuppressWarnings("CloneDoesntCallSuperClone")
+	public ServerBootstrap clone() {
+		return new ServerBootstrap(this);
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder buf = new StringBuilder(super.toString());
+		buf.setLength(buf.length() - 1);
+		buf.append(", ");
+		if (childGroup != null) {
+			buf.append("childGroup: ");
+			buf.append(StringUtil.simpleClassName(childGroup));
+			buf.append(", ");
+		}
+		synchronized (childOptions) {
+			if (!childOptions.isEmpty()) {
+				buf.append("childOptions: ");
+				buf.append(childOptions);
+				buf.append(", ");
+			}
+		}
+		synchronized (childAttrs) {
+			if (!childAttrs.isEmpty()) {
+				buf.append("childAttrs: ");
+				buf.append(childAttrs);
+				buf.append(", ");
+			}
+		}
+		if (childHandler != null) {
+			buf.append("childHandler: ");
+			buf.append(childHandler);
+			buf.append(", ");
+		}
+		if (buf.charAt(buf.length() - 1) == '(') {
+			buf.append(')');
+		} else {
+			buf.setCharAt(buf.length() - 2, ')');
+			buf.setLength(buf.length() - 1);
+		}
+
+		return buf.toString();
+	}
 }

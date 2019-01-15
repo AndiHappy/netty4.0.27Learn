@@ -22,7 +22,6 @@ import java.util.concurrent.Delayed;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-@SuppressWarnings("ComparableImplementedButEqualsNotOverridden")
 final class ScheduledFutureTask<V> extends PromiseTask<V> implements ScheduledFuture<V> {
     private static final AtomicLong nextTaskId = new AtomicLong();
     private static final long START_TIME = System.nanoTime();
@@ -47,9 +46,8 @@ final class ScheduledFutureTask<V> extends PromiseTask<V> implements ScheduledFu
         this(executor, toCallable(runnable, result), nanoTime);
     }
 
-    ScheduledFutureTask(
-            AbstractScheduledEventExecutor executor,
-            Callable<V> callable, long nanoTime, long period) {
+    
+    ScheduledFutureTask(AbstractScheduledEventExecutor executor,Callable<V> callable, long nanoTime, long period) {
 
         super(executor, callable);
         if (period == 0) {
@@ -111,9 +109,11 @@ final class ScheduledFutureTask<V> extends PromiseTask<V> implements ScheduledFu
         }
     }
 
+    /**
+     * scheduledTaskQueue 永不为null
+     * */
     @Override
     public void run() {
-//    	System.out.println("ScheduledFutureTask。。。。。。。");
         assert executor().inEventLoop();
         try {
             if (periodNanos == 0) {

@@ -142,6 +142,12 @@ abstract class AbstractChannelHandlerContext extends DefaultAttributeMap impleme
         return name;
     }
 
+    /**
+     * fireChannelRegistered
+     * fireChannelRead
+     * fireChannel***
+     * 操作的逻辑基本相同： 首先是拿到pipeline中的handler，然后判断是否在
+     * */
     @Override
     public ChannelHandlerContext fireChannelRegistered() {
         final AbstractChannelHandlerContext next = findContextInbound();
@@ -519,6 +525,9 @@ abstract class AbstractChannelHandlerContext extends DefaultAttributeMap impleme
         return connect(remoteAddress, null, promise);
     }
 
+    /**
+     * 客户端的连接事件的处理的逻辑
+     * */
     @Override
     public ChannelFuture connect(
             final SocketAddress remoteAddress, final SocketAddress localAddress, final ChannelPromise promise) {

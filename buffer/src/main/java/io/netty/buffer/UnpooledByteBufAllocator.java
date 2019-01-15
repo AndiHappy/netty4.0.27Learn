@@ -51,7 +51,7 @@ public final class UnpooledByteBufAllocator extends AbstractByteBufAllocator {
         } else {
             buf = new UnpooledDirectByteBuf(this, initialCapacity, maxCapacity);
         }
-
+        //内存泄漏的侦测
         return toLeakAwareBuffer(buf);
     }
 

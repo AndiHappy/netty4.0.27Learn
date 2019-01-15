@@ -26,15 +26,27 @@ import java.nio.channels.ClosedChannelException;
 import java.nio.channels.GatheringByteChannel;
 import java.nio.channels.ScatteringByteChannel;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * A NIO {@link ByteBuffer} based buffer.  It is recommended to use {@link Unpooled#directBuffer(int)}
  * and {@link Unpooled#wrappedBuffer(ByteBuffer)} instead of calling the
  * constructor explicitly.
  */
+//A NIO ByteBuffer based buffer. 
+//It is recommended to use Unpooled.directBuffer(int) and
+//Unpooled.wrappedBuffer(ByteBuffer) instead of calling the constructor explicitly.
+/**
+ * 基于JDK中的ByteBuffer封装出来的一个DirectByteBuf
+ * 一个就是增加了引用的机制：实现了ReferenceCounted接口。
+ * */
 public class UnpooledUnsafeDirectByteBuf extends AbstractReferenceCountedByteBuf {
 
+    private static final Logger log = LoggerFactory.getLogger(UnpooledUnsafeDirectByteBuf.class);
+	
     private static final boolean NATIVE_ORDER = ByteOrder.nativeOrder() == ByteOrder.BIG_ENDIAN;
-
+    
     private final ByteBufAllocator alloc;
 
     private long memoryAddress;
@@ -50,7 +62,8 @@ public class UnpooledUnsafeDirectByteBuf extends AbstractReferenceCountedByteBuf
      * @param maxCapacity     the maximum capacity of the underlying direct buffer
      */
     protected UnpooledUnsafeDirectByteBuf(ByteBufAllocator alloc, int initialCapacity, int maxCapacity) {
-        super(maxCapacity);
+
+    	super(maxCapacity);
         if (alloc == null) {
             throw new NullPointerException("alloc");
         }
@@ -105,6 +118,7 @@ public class UnpooledUnsafeDirectByteBuf extends AbstractReferenceCountedByteBuf
      * Allocate a new direct {@link ByteBuffer} with the given initialCapacity.
      */
     protected ByteBuffer allocateDirect(int initialCapacity) {
+    	//内部的实现JDK的ByteBuffer分配allocateDirect Direct内存
         return ByteBuffer.allocateDirect(initialCapacity);
     }
 
@@ -126,8 +140,10 @@ public class UnpooledUnsafeDirectByteBuf extends AbstractReferenceCountedByteBuf
         }
 
         this.buffer = buffer;
+        //内存的地址
         memoryAddress = PlatformDependent.directBufferAddress(buffer);
         tmpNioBuf = null;
+        //limit - position 剩余的空间量
         capacity = buffer.remaining();
     }
 
@@ -440,6 +456,7 @@ public class UnpooledUnsafeDirectByteBuf extends AbstractReferenceCountedByteBuf
 
     @Override
     public int setBytes(int index, ScatteringByteChannel in, int length) throws IOException {
+    	log.info("从Channel中读取字节的实现逻辑的地方。");
         ensureAccessible();
         ByteBuffer tmpBuf = internalNioBuffer();
         tmpBuf.clear().position(index).limit(index + length);

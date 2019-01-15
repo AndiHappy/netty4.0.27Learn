@@ -15,18 +15,18 @@
  */
 package io.netty.channel.nio;
 
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelConfig;
-import io.netty.channel.ChannelOutboundBuffer;
-import io.netty.channel.ChannelPipeline;
-import io.netty.channel.ServerChannel;
-
 import java.io.IOException;
 import java.net.PortUnreachableException;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.util.ArrayList;
 import java.util.List;
+
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelConfig;
+import io.netty.channel.ChannelOutboundBuffer;
+import io.netty.channel.ChannelPipeline;
+import io.netty.channel.ServerChannel;
 
 /**
  * {@link AbstractNioChannel} base class for {@link Channel}s that operate on messages.
@@ -40,6 +40,19 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
         super(parent, ch, readInterestOp);
     }
 
+    /**
+     * 实现抽象方法：这个抽象方法对应的Unsafe接口，真正管理channel注册的一个接口，这里的NioMessageUnsafe是一个多继承到的类型
+     * 
+     * NioMessageUnsafe extends AbstractNioUnsafe
+     * AbstractNioUnsafe extends AbstractUnsafe implements NioUnsafe
+     * AbstractUnsafe implements Unsafe
+     * NioUnsafe extends Unsafe
+     * 
+     * 最底层的是Unsafe 这个接口类，规定了channel的基本的接口
+     *  
+     * NioUnsafe 增加了一些方法接口
+     *   
+     * */
     @Override
     protected AbstractNioUnsafe newUnsafe() {
         return new NioMessageUnsafe();
@@ -49,6 +62,7 @@ public abstract class AbstractNioMessageChannel extends AbstractNioChannel {
 
         private final List<Object> readBuf = new ArrayList<Object>();
 
+        //处理读的事件
         @Override
         public void read() {
             assert eventLoop().inEventLoop();

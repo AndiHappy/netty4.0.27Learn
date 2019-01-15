@@ -66,8 +66,11 @@ public abstract class ChannelInitializer<C extends Channel> extends ChannelInbou
         ChannelPipeline pipeline = ctx.pipeline();
         boolean success = false;
         try {
+        	//抽象类的方法，有具体的实现类来实现
+        	logger.info("I：register 事件处理器:{}，BootStrapServer的iniChannel时增加。",this);
             initChannel((C) ctx.channel());
             pipeline.remove(this);
+        	logger.info("III：register 事件处理器:{} 被从Pipeline中删除。",this);
             ctx.fireChannelRegistered();
             success = true;
         } catch (Throwable t) {

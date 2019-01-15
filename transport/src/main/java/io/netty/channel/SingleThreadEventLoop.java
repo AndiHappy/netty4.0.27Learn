@@ -17,7 +17,10 @@ package io.netty.channel;
 
 import java.util.concurrent.ThreadFactory;
 
-import io.netty.channel.Channel.Unsafe;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.netty.util.NoteLog;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.netty.util.concurrent.SingleThreadEventExecutor;
 
@@ -26,6 +29,8 @@ import io.netty.util.concurrent.SingleThreadEventExecutor;
  *
  */
 public abstract class SingleThreadEventLoop extends SingleThreadEventExecutor implements EventLoop {
+
+    private static final Logger log = LoggerFactory.getLogger(SingleThreadEventLoop.class);
 
     /**
      * @see {@link SingleThreadEventExecutor#SingleThreadEventExecutor(EventExecutorGroup, ThreadFactory, boolean)}
@@ -49,8 +54,7 @@ public abstract class SingleThreadEventLoop extends SingleThreadEventExecutor im
      * */
     @Override
     public ChannelFuture register(Channel channel) {
-    	// 注册channel到Selector
-    	log.info("{} register para:{}",this.toString(),channel.toString());
+    	log.info("2.1 Channel register 成员函数所在执行实例:{} 通道实例:{}",this,channel);
         return register(channel, new DefaultChannelPromise(channel, this));
     }
 
@@ -62,6 +66,7 @@ public abstract class SingleThreadEventLoop extends SingleThreadEventExecutor im
         if (promise == null) {
             throw new NullPointerException("promise");
         }
+        
         /**
          * 这个地方有很大的疑问：
          * channel.unsafe() 是NioServerSocketChannel的父类中的一个成员变量，在创建NioServerSocketChannel的时候，这个
@@ -75,7 +80,11 @@ public abstract class SingleThreadEventLoop extends SingleThreadEventExecutor im
          * 
          * NioMessageUnsafe 《==  AbstractNioUnsafe 《== AbstractUnsafe 《==implements Unsafe
          * 
+         * channel.unsafe() 返回的是新建NioServerSocketChannel的时候，会设置的 NioMessageUnsafe
+         * 
+         *  channel.unsafe().register(this, promise) 会直接的进入NioMessageUnsafe的方法中！
          * */
+        
         channel.unsafe().register(this, promise);
         return promise;
     }

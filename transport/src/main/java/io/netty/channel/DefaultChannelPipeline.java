@@ -42,6 +42,57 @@ import java.util.concurrent.Future;
  * The default {@link ChannelPipeline} implementation.  It is usually created
  * by a {@link Channel} implementation when the {@link Channel} is created.
  */
+
+/**
+ * Pipeline 的体系结构的响应机制：
+ * 一种是：
+ * 
+ * Pipeline直接的访问：io.netty.channel.DefaultChannelPipeline.connect(SocketAddress, ChannelPromise)
+ * 然后就是直接的调用：   tail.connect(remoteAddress)
+ * 
+ * 另外的一种是：
+ * Pipeline的fire访问:io.netty.channel.DefaultChannelPipeline.fireChannelRead(Object)
+ * 然后就是调用：  head.fireChannelRead(msg);
+ * 
+ * 这里的tail和head是DefaultChannelPipeline构建函数构造的。分别是内部类TailContext和HeadContext。
+ * 
+ * head----> tail
+ *   ^        |
+ *   |        |
+ *   |________|
+ *   
+ *   但是TailContext实现的接口是：ChannelInboundHandler
+ *      HeadContext实现的接口是：ChannelOutboundHandler
+ *  
+ *  这里面就有了一个比较重要的方向：in 和 out,这里的in和out是针对Server来说的，应该Netty Server来处理的，就是in，向外流的
+ *  就是：out，所以tail处理向里，向内的数据。head处理向外，出来的数据。
+ *  
+ *  再看TailContext和HeadContext，实现的方法：
+ *  
+ *  TailContext：扩展自AbstractChannelHandlerContext，并且没有扩展具体的逻辑。
+ *  HeadContext：扩展全部来自：	pipeline.channel().unsafe() 实现。
+ *  
+ *  就按照DefaultChannelPipeline.connect(SocketAddress, ChannelPromise)为例来说明：
+ *  1. ==> tail.connect(remoteAddress, promise) //tail扩展自：AbstractChannelHandlerContext
+ *  2. ===> AbstractChannelHandlerContext.connect(SocketAddress, SocketAddress, ChannelPromise) //tail的父类提供具体的逻辑
+ *  3. ====> tail的pre的handler的处理：next.invokeConnect(remoteAddress, localAddress, promise);
+ *  4. =====> ((ChannelOutboundHandler) handler()).connect(this, remoteAddress, localAddress, promise); //这里的this就是TailContext
+ *  5. ======> LoggingHandler.connect(ChannelHandlerContext, SocketAddress, SocketAddress, ChannelPromise) // 执行逻辑： ctx.connect(remoteAddress, localAddress, promise);
+ *  6. =======> 循环到步骤2再次的循环，一直到：
+ *   
+ *  DefaultChannelPipeline的fireChannelRead()的方法的调用过程：
+ *  
+ *  1. ==> DefaultChannelPipeline.fireChannelRead(Object) //调用的逻辑是：  head.fireChannelRead(msg);
+ *  2. ===>  AbstractChannelHandlerContext.fireChannelRead(Object) // HeadContext的fireChannelRead(msg)直接使用父类方法
+ *  3. =====> AbstractChannelHandlerContext next = findContextInbound() //顺着 ctx = ctx.next 调用处理
+ *  4. ======> next.invokeChannelRead(msg) // ((ChannelInboundHandler) handler()).channelRead(this, msg)
+ *  5. =======> LoggingHandler.channelRead(ChannelHandlerContext, Object) // 前一段是LoggingHandler的业务逻辑，后面直接调用6
+ *  6. =========> ChannelHandlerContext.fireChannelRead(msg);
+ *  7. ===========> 直接的回到了调用2，再次的循环，一直到：
+ *  
+ *  handler只能中不在调用fire下去。
+ *  
+ * */
 final class DefaultChannelPipeline implements ChannelPipeline {
 
     static final InternalLogger logger = InternalLoggerFactory.getInstance(DefaultChannelPipeline.class);
@@ -840,11 +891,9 @@ final class DefaultChannelPipeline implements ChannelPipeline {
     @Override
     public ChannelPipeline fireChannelActive() {
         head.fireChannelActive();
-
         if (channel.config().isAutoRead()) {
             channel.read();
         }
-
         return this;
     }
 
@@ -1074,6 +1123,9 @@ final class DefaultChannelPipeline implements ChannelPipeline {
         public void channelReadComplete(ChannelHandlerContext ctx) throws Exception { }
     }
 
+    /**
+     * HeadContext 里面有connect的事件处理
+     * */
     static final class HeadContext extends AbstractChannelHandlerContext implements ChannelOutboundHandler {
 
         private static final String HEAD_NAME = generateName0(HeadContext.class);
@@ -1100,13 +1152,20 @@ final class DefaultChannelPipeline implements ChannelPipeline {
             // NOOP
         }
 
+        /**
+         * 处理绑定事件，改事件从tail开始，
+         * */
         @Override
         public void bind(
                 ChannelHandlerContext ctx, SocketAddress localAddress, ChannelPromise promise)
                 throws Exception {
+        	//unsafe 设置：pipeline.channel().unsafe()
             unsafe.bind(localAddress, promise);
         }
 
+        /**
+         * Netty Client Connection的处理事件逻辑
+         * */
         @Override
         public void connect(
                 ChannelHandlerContext ctx,

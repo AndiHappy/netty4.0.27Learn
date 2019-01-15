@@ -15,6 +15,12 @@
  */
 package io.netty.util.concurrent;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+
+import java.util.ArrayDeque;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.TimeUnit;
+
 import io.netty.util.Signal;
 import io.netty.util.internal.EmptyArrays;
 import io.netty.util.internal.InternalThreadLocalMap;
@@ -23,12 +29,13 @@ import io.netty.util.internal.StringUtil;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
 
-import java.util.ArrayDeque;
-import java.util.concurrent.CancellationException;
-import java.util.concurrent.TimeUnit;
-
-import static java.util.concurrent.TimeUnit.*;
-
+/***
+ * 梳理netty的结果迟后操作的对象
+ * 
+ * 1. 主要的机制是：Synchronized+wait+notify/notifyAll
+ * 2. 判断是否执行完毕的机制：根据private static final 修饰的成员变量和 volatitle 修饰的变量的比对
+ * 3. 通知执行完毕的机制：采用观察者模式，根据事先add的listener对象，进行遍历的通知
+ * */
 public class DefaultPromise<V> extends AbstractFuture<V> implements Promise<V> {
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(DefaultPromise.class);
@@ -101,6 +108,10 @@ public class DefaultPromise<V> extends AbstractFuture<V> implements Promise<V> {
         return result == null;
     }
 
+    /**
+     * 根据result进行判断，result不为null，并且result不等于UNCANCELLABLE，这个是根据对象的地址进行判断
+     * 此方法和trySuccess 可以相比较
+     * */
     @Override
     public boolean isDone() {
         return isDone0(result);
@@ -236,6 +247,12 @@ public class DefaultPromise<V> extends AbstractFuture<V> implements Promise<V> {
         PlatformDependent.throwException(cause);
     }
 
+    /**
+     * 1.判断是否isDone 
+     * 2. synchronized + wait方法 的机制，实现唤醒
+     * 3. trysuccess主方法中，使用 synchronized + notify方法 的机制，实现唤醒
+     * 4. checkDeadLock，检测promise对应的thread是否还存在
+     * */
     @Override
     public Promise<V> await() throws InterruptedException {
         if (isDone()) {

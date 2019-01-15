@@ -50,6 +50,9 @@ public class DefaultChannelConfig implements ChannelConfig {
 
     protected final Channel channel;
 
+    /**
+     * ByteBufAllocator 的 byteBuf 的分配者 
+     * */
     private volatile ByteBufAllocator allocator = ByteBufAllocator.DEFAULT;
     private volatile RecvByteBufAllocator rcvBufAllocator = DEFAULT_RCVBUF_ALLOCATOR;
     private volatile MessageSizeEstimator msgSizeEstimator = DEFAULT_MSG_SIZE_ESTIMATOR;
@@ -170,6 +173,7 @@ public class DefaultChannelConfig implements ChannelConfig {
         } else if (option == WRITE_SPIN_COUNT) {
             setWriteSpinCount((Integer) value);
         } else if (option == ALLOCATOR) {
+        	//可以通过设置，自定义byte的分配者的设置
             setAllocator((ByteBufAllocator) value);
         } else if (option == RCVBUF_ALLOCATOR) {
             setRecvByteBufAllocator((RecvByteBufAllocator) value);
@@ -241,6 +245,7 @@ public class DefaultChannelConfig implements ChannelConfig {
         return this;
     }
 
+    //NioSocketChannel$NioSocketChannelConfig(DefaultChannelConfig).getAllocator()
     @Override
     public ByteBufAllocator getAllocator() {
         return allocator;

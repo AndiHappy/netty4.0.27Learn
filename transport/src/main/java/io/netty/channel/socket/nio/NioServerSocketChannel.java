@@ -82,7 +82,7 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
      * Create a new instance using the given {@link ServerSocketChannel}.
      */
     public NioServerSocketChannel(ServerSocketChannel channel) {
-    	//一开始注册的是SelectionKey的read事件
+    	//一开始注册的是SelectionKey的事件Connect事件
         super(null, channel, SelectionKey.OP_ACCEPT);
         //这里的javaChannel
         config = new NioServerSocketChannelConfig(this, javaChannel().socket());
@@ -126,6 +126,8 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
 
     @Override
     protected void doBind(SocketAddress localAddress) throws Exception {
+    	//backlog: requested maximum length of the queue of incoming connections.
+    	log.info("B.3 bind线程真正的逻辑实现地:{}",this);
         javaChannel().socket().bind(localAddress, config.getBacklog());
     }
 

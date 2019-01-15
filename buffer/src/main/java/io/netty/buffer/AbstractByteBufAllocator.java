@@ -101,6 +101,9 @@ public abstract class AbstractByteBufAllocator implements ByteBufAllocator {
         return heapBuffer(DEFAULT_INITIAL_CAPACITY);
     }
 
+    /**
+     * 分配IO的缓存
+     * */
     @Override
     public ByteBuf ioBuffer(int initialCapacity) {
         if (PlatformDependent.hasUnsafe()) {

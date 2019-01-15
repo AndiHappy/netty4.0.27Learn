@@ -23,6 +23,11 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.netty.util.NoteLog;
+
 /**
  * Abstract base class for {@link EventExecutorGroup} implementations that handles their tasks with multiple threads at
  * the same time.
@@ -30,11 +35,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 public abstract class MultithreadEventExecutorGroup extends AbstractEventExecutorGroup {
 	//NioLoopEventGroup的children对应的线程，成员是：SingleThreadEventExecutor
     private final EventExecutor[] children;
+    //child的索引
     private final AtomicInteger childIndex = new AtomicInteger();
     private final AtomicInteger terminatedChildren = new AtomicInteger();
     private final Promise<?> terminationFuture = new DefaultPromise(GlobalEventExecutor.INSTANCE);
+    //child的选择
     private final EventExecutorChooser chooser;
-
+    private final Logger log = LoggerFactory.getLogger(MultithreadEventExecutorGroup.class);
     /**
      * Create a new instance.
      *
@@ -43,6 +50,7 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
      * @param args              arguments which will passed to each {@link #newChild(ThreadFactory, Object...)} call
      */
     protected MultithreadEventExecutorGroup(int nThreads, ThreadFactory threadFactory, Object... args) {
+    	log.info("构建:{},最重要的参数：{}",this.getClass().getSimpleName(),args[0]);
     	 //线程数必须大于零
         if (nThreads <= 0) {
             throw new IllegalArgumentException(String.format("nThreads: %d (expected: > 0)", nThreads));
@@ -54,8 +62,10 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
         }
 
         // children 是SingleThreadEventExecutor数组，children是一个 线程，单个线程的事件执行器
+        // SingleThreadEventExecutor 为一个抽象类
         children = new SingleThreadEventExecutor[nThreads];
         
+        //是否为2的次方个
         if (isPowerOfTwo(children.length)) {
             chooser = new PowerOfTwoEventExecutorChooser();
         } else {
@@ -65,6 +75,7 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
         for (int i = 0; i < nThreads; i ++) {
             boolean success = false;
             try {
+            	// 调用了抽象类的方法，好处：EpollEventLoopGroup，NioEventLoopGroup，两个实现类就能根据自己的需要制定child的类型
                 children[i] = newChild(threadFactory, args);
                 success = true;
             } catch (Exception e) {
@@ -94,6 +105,7 @@ public abstract class MultithreadEventExecutorGroup extends AbstractEventExecuto
         final FutureListener<Object> terminationListener = new FutureListener<Object>() {
             @Override
             public void operationComplete(Future<Object> future) throws Exception {
+            	log.info("NOTE: terminationListener:{},this:{}",future.getNow(),this.toString());
                 if (terminatedChildren.incrementAndGet() == children.length) {
                     terminationFuture.setSuccess(null);
                 }

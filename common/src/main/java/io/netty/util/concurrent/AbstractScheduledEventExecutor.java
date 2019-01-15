@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
  * Abstract base class for {@link EventExecutor}s that want to support scheduling.
  */
 public abstract class AbstractScheduledEventExecutor extends AbstractEventExecutor {
-	public static final Logger log = LoggerFactory.getLogger(AbstractScheduledEventExecutor.class);
+	private static  Logger log = LoggerFactory.getLogger(AbstractScheduledEventExecutor.class);
 
     Queue<ScheduledFutureTask<?>> scheduledTaskQueue;
 
@@ -40,6 +40,8 @@ public abstract class AbstractScheduledEventExecutor extends AbstractEventExecut
     }
 
     Queue<ScheduledFutureTask<?>> scheduledTaskQueue() {
+    	//
+    	log.info("");
         if (scheduledTaskQueue == null) {
             scheduledTaskQueue = new PriorityQueue<ScheduledFutureTask<?>>();
         }
@@ -188,8 +190,9 @@ public abstract class AbstractScheduledEventExecutor extends AbstractEventExecut
                 ScheduledFutureTask.deadlineNanos(unit.toNanos(initialDelay)), -unit.toNanos(delay)));
     }
 
+    //task 直接的加入scheduledTaskQueue中
     <V> ScheduledFuture<V> schedule(final ScheduledFutureTask<V> task) {
-    	log.info("add task:{}",task.getClass().getName());
+    	log.info("增加schedule task :{}",task.getClass().getName());
         if (inEventLoop()) {
             scheduledTaskQueue().add(task);
         } else {

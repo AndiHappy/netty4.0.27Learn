@@ -15,15 +15,13 @@
  */
 package io.netty.channel;
 
-import io.netty.channel.nio.NioEventLoop;
+import java.util.concurrent.ThreadFactory;
+
 import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.MultithreadEventExecutorGroup;
 import io.netty.util.internal.SystemPropertyUtil;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-
-import java.nio.channels.spi.SelectorProvider;
-import java.util.concurrent.ThreadFactory;
 
 /**
  * Abstract base class for {@link EventLoopGroup} implementations that handles their tasks with multiple threads at
@@ -67,13 +65,39 @@ public abstract class MultithreadEventLoopGroup extends MultithreadEventExecutor
      * channel 为首先新建立的NioServerSocketChannel
      * 
      * register(channel),到底是channel注册到LoopGroup，还是LoopGroup注册到channel？
+     * 
+     * 回答：Channel注册到LoopGroup的Selector上面去。
+     * 
+     * 另外这里的regist为NioEventLoopGroup的成员函数，在netty中调用了两次：
+     * 
+     * ChannelFuture regFuture = group().register(channel);
+     * ChannelFuture future = childGroup.register(child);
+     * 
+     * 从ServerBootStrap的设置中知晓：group为bossgroup，worker为workergroup
+     * 从上面register的注册可以知道，register的逻辑就是channel/child 注册到NioEventLoopGroup的Selector
+     * 那么可不可以理解为server端的channel全部注册在parent或者称之为group的NioEventLoopGroup中，
+     * 但是客户端连接进来的Channel全部注册在worker或称之为child的NioEventLoopGroup中，
+     * 
+     * 如果是这样的话，那么他们之间的交互，又该是如何交互的？
+     * 
+     * 回答：
+     * 	Selector的SelectKey可以设置感兴趣事件：key.interestOps(SelectionKey.OP_ACCEPT);
+     * 
+     *  需要找到selector的设置SelectionKey.OP_ACCEPT的代码点：
+     *  
+     *  
      * */
     @Override
     public ChannelFuture register(Channel channel) {
-    	//next(),选择的是new NioEventLoopGroup(int nThreads)，里面的nThreads，对应的就是children：SingleThreadEventLoop数组
-    	//实际的新建在NioEventLoopGroup中，对应的是：new NioEventLoop(this, threadFactory, (SelectorProvider) args[0])
-        //next()根据nThreads是否为2的次方选择具体的哪一个children,实例就是NioEventLoop类型
-    	//register为SingleThreadEventLoop成员函数
+    	/**
+    	 * next() 根据 nThreads是否为2的次方选择具体的哪一个children,返回的实例是NioEventLoop类型
+    	 * 
+    	 * nThreads 是在ServerBootStrap 设置的NioEventLoopGroup() 的线程数
+    	 * 
+    	 * next() 保证的是注册的时候，channel的注册事件被均匀的分布到NioEventLoop,具体怎么保证每一个channel能够一一的对应，这个不在这个里面。
+    	 * 
+    	 * NioEventLoop.register(NioServerSocketChannel)
+    	 * */
         return next().register(channel);
     }
 

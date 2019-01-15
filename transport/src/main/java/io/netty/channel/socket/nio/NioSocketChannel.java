@@ -339,6 +339,7 @@ public class NioSocketChannel extends AbstractNioByteChannel implements io.netty
         }
     }
 
+    // NioSocketServer的config
     private final class NioSocketChannelConfig  extends DefaultSocketChannelConfig {
         private NioSocketChannelConfig(NioSocketChannel channel, Socket javaSocket) {
             super(channel, javaSocket);

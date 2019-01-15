@@ -23,6 +23,9 @@ import java.util.concurrent.TimeUnit;
  * The result of an asynchronous operation.
  */
 @SuppressWarnings("ClassNameSameAsAncestorName")
+/***
+ * C1. 扩展自JDK提供的Future接口，根据需要，增加针对netty逻辑的方法，例如cause，Listener相关的方法
+ * */
 public interface Future<V> extends java.util.concurrent.Future<V> {
 
     /**

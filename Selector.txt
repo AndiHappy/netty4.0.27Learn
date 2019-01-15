@@ -1,0 +1,54 @@
+Selector是一个多路复用器，它负责管理被注册到其上的SelectableChannel。
+ 
+Selector的实现根据操作系统的不同而不同，目前多路复用IO实现主要包括四种：select、poll、epoll、kqueue，
+ 
+这里借用http://blog.csdn.net/u010963948/article/details/78507255博客中4种多路复用I/O实现的总结，列表如下：
+IO模型	相对性能	关键思路	         操作系统	                          	JAVA支持情况
+select	较高	    Reactor	        windows/Linux	                    支持,Reactor模式(反应器设计模式)。Linux操作系统的 kernels 2.4内核版本之前，默认使用select；而目前windows下对同步IO的支持，都是select模型
+poll	较高	    Reactor	        Linux								Linux下的JAVA NIO框架，Linux kernels 2.6内核版本之前使用poll进行支持。也是使用的Reactor模式
+epoll	高	Reactor/Proactor	Linux	                            Linux kernels 2.6内核版本及以后使用epoll进行支持；Linux kernels 2.6内核版本之前使用poll进行支持；另外一定注意，由于Linux下没有Windows下的IOCP技术提供真正的 异步IO 支持，所以Linux下使用epoll模拟异步IO
+kqueue	高	Proactor	        Linux	                            目前JAVA的版本不支持
+
+Selector有2种创建方式：
+
+* Selector.open():会调用操作系统底层的Selector实现来创建Selector；
+* SelectorProvider.openSelector()：这种方式直接调用SelectorProvider类来获取操作系统底层的Selector来创建Selector。
+
+每个SelectableChannel会调用其SelectionKey register(Selector sel, int ops, Object att) 方法向Selector注册，
+注册完毕后收到一个SelectionKey对象。Selector对象里维护着3个类型为java.util.Set的集合：
+
+key集合	
+
+这个集合里都是注册到Selector的SelectableChannel对应的SelectionKey。
+要获得这些SelectionKey可以调用Selector.keys()。
+
+selected-key集合	
+
+Selector会定期向操作系统内核询问是否有事件要通知到SelectableChannel，
+会将那些对这些事件感兴趣的SelectableChannel当时注册到Selector的SelectionKey复制一份到此集合，
+要获得这些SelectionKey集合可以调用Selector.selectedKeys()，这个集合是key集合的子集。
+
+cancelled-key集合	
+这个集合里记录的是那些取消了对操作系统内核事件关注但并未取消对于Selector注册的SelectableChannel对应的SelectionKey的集合，
+这个集合不能直接访问，通常这个集合是key集合的子集。
+
+
+在SelectableChannel.register(Selector sel, int ops, Object att)调用后，会收到一个SelectionKey，
+并且SelectionKey已经在此方法调用后被添加到key集合.
+
+而cancelled-key集合中的SelectionKey会在Selector每次询问操作系统内核是否有事件通知时，
+从key集合中删除这些SelectionKey，而key集合自身不能直接被修改。
+
+在SelectionKey.cancel()或者SelectionKey对应的SelectableChannel.close()调用后，
+这个SelectionKey会被添加到cancelled-key集合，在下一个询问操作系统内核是否有事件通知时，
+会将这些取消了的SelectionKey从Selector对应的3个集合（key集合、selected-key集合、cancelled-key集合）中清理掉，
+同时这些SelectionKey对应的SelectableChannel也会从Selector中被注销。
+
+
+只有Selector.select()、Selector.select(long timeout)、Selector.selectNow()
+被调用并且操作系统内核是有事件通知才会将那些对这些事件感兴趣的SelectableChannel对应的SelectionKey放入selected-key集合，
+除此之外别无其它方法。
+
+只有直接调用selected-key集合的 Set.remove(Object o)或者通过Set.iterator()获取到的Iterator上
+调用Iterator.remove()来从selected-key集合删除某个SelectionKey，除此之外别其它方法。
+

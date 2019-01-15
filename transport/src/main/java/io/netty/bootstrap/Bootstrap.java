@@ -151,6 +151,9 @@ public class Bootstrap extends AbstractBootstrap<Bootstrap, Channel> {
         return promise;
     }
 
+    /**
+     * 客户端的Connect的事件处理
+     * */
     private static void doConnect0(
             final ChannelFuture regFuture, final Channel channel,
             final SocketAddress remoteAddress, final SocketAddress localAddress, final ChannelPromise promise) {

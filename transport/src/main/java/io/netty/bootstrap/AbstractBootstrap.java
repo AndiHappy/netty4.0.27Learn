@@ -28,6 +28,7 @@ import io.netty.channel.EventLoop;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoop;
 import io.netty.util.AttributeKey;
+import io.netty.util.NoteLog;
 import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.GlobalEventExecutor;
 import io.netty.util.internal.StringUtil;
@@ -36,8 +37,13 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.channels.spi.SelectorProvider;
+import java.text.DateFormat;
+import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.Map;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * {@link AbstractBootstrap} is a helper class that makes it easy to bootstrap a {@link Channel}. It support
@@ -54,6 +60,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     private final Map<ChannelOption<?>, Object> options = new LinkedHashMap<ChannelOption<?>, Object>();
     private final Map<AttributeKey<?>, Object> attrs = new LinkedHashMap<AttributeKey<?>, Object>();
     private volatile ChannelHandler handler;
+    public static final Logger log = LoggerFactory.getLogger(AbstractBootstrap.class);
 
     AbstractBootstrap() {
         // Disallow extending from a different package.
@@ -279,12 +286,21 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     /**
      * 服务启动的入口：
      * 
-     * 1. 初始化Channel，并且注册
+     * 1. 初始化Channel，并且注册:主要就是register
+     * 2. 根据1的结果，选择直接返回，亦或者是走绑定的逻辑。主要的逻辑就是：bind
+     * 3. 绑定逻辑分为两种选择，一种是现在已经完成了1，直接走绑定的逻辑。一种是还没有完成，增加监听逻辑，等待1完成以后，走绑定的逻辑。
      * 
+     * 后续总结，这个具体落实的逻辑就只有两句话：
+     * 
+     * i:    selectionKey = javaChannel().register(eventLoop().selector, 0, this);
+     * ii:   sun.nio.ch.ServerSocketChannelImpl.bind(SocketAddress, int)
      * */
     private ChannelFuture doBind(final SocketAddress localAddress) {
-    	//初始化Channel，并且注册 ！！！
+    	//初始化Channel，并且注册,channel 注册到 selector上面。
+    	log.info("initAndRegister:{} 开始,初始化，并且注册Channel",localAddress);
         final ChannelFuture regFuture = initAndRegister();
+        log.info("initAndRegister:{} 结束,主要完成的逻辑是：\n\t\t 1. 启动了NioEventLoop，\n\t\t 2. 把Selectchannel 注册到Selector中. \n\t\t 3. 初始化完成了pipeline的handler里面。",localAddress);
+        //异常的判断
         final Channel channel = regFuture.channel();
         if (regFuture.cause() != null) {
             return regFuture;
@@ -293,6 +309,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         if (regFuture.isDone()) {
             // At this point we know that the registration was complete and successful.
             ChannelPromise promise = channel.newPromise();
+            //绑定
             doBind0(regFuture, channel, localAddress, promise);
             return promise;
         } else {
@@ -336,23 +353,43 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      * 
      * */
     final ChannelFuture initAndRegister() {
-    	//channelFactory由ServerBootStrap中的channel()方法已经指定
-    	//newChannel 直接是类型的Class new instance，对应的代码是：clazz.newInstance()，这点和原来的差别比较的大
+    	/**
+    	 * channelFactory:由ServerBootStrap中的channel()方法已经指定,在channel方法中，指定了channel的类型，也就是指定channelFactory
+    	 * 对应的逻辑就是： new BootstrapChannelFactory<C>(channelClass)
+    	 * 
+    	 * newChannel 直接是类型的Class new instance，对应的代码是：clazz.newInstance()，这点和原来的差别比较的大
+    	 * */
         final Channel channel = channelFactory().newChannel();
         try {
         	//初始化，独立出来了,抽象的方法，必须有子类进行定义
-        	//抽象类的声明： abstract void init(Channel channel) throws Exception;
-            //有具体的子类来进行实现
+        	//
+            //
+        	/**
+        	 * 抽象方法的声明： abstract void init(Channel channel) throws Exception;
+        	 * 有具体的子类来进行实现：ServerBootstrap,具体实现的说明，可以参见方法上面的注释
+        	 * */
             init(channel);
         } catch (Throwable t) {
             channel.unsafe().closeForcibly();
             // as the Channel is not registered yet we need to force the usage of the GlobalEventExecutor
             return new DefaultChannelPromise(channel, GlobalEventExecutor.INSTANCE).setFailure(t);
         }
+        
+        /**************************************************************************************
+        *  到这里channel算是初始化完成，只是对应的数据结构初始化完成，并没有运行任何的任务，下面开始任务的添加
+        *
+        **************************************************************************************/
 
-        //注册逻辑：ServerBootStrap的方法：group(EventLoopGroup parentGroup, EventLoopGroup childGroup)
-        //group指定的是：parentGroup
+        log.info("1. channel初始化完成:{} ",channel);
+       
+        /**
+         * NioServerSocketChannel 包含的 javaChannel() 注册到了 NioEventLoopGroup 的成员变量：Selector上面
+         * */
+        log.info("2.0 通道开始注册到Selector上面：channel:{} register=> group:{}",channel,group());
         ChannelFuture regFuture = group().register(channel);
+
+        log.info("4.0 initAndRegister over. 完成初始化，并且注册");
+        //异常处理
         if (regFuture.cause() != null) {
             if (channel.isRegistered()) {
                 channel.close();
@@ -360,30 +397,25 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
                 channel.unsafe().closeForcibly();
             }
         }
-
-        // If we are here and the promise is not failed, it's one of the following cases:
-        // 1) If we attempted registration from the event loop, the registration has been completed at this point.
-        //    i.e. It's safe to attempt bind() or connect() now because the channel has been registered.
-        // 2) If we attempted registration from the other thread, the registration request has been successfully
-        //    added to the event loop's task queue for later execution.
-        //    i.e. It's safe to attempt bind() or connect() now:
-        //         because bind() or connect() will be executed *after* the scheduled registration task is executed
-        //         because register(), bind(), and connect() are all bound to the same thread.
-
         return regFuture;
     }
 
     abstract void init(Channel channel) throws Exception;
 
+    /**
+     * doBind0 在channel register 之后，
+     * 1. 通过regFuture.isDone() 判断，如果没有的话，
+     * 2. 通过：PendingRegistrationPromise 添加监听的方式
+     * 3. 具体的逻辑就是SelectChannel，绑定 localAddress 上。调用的API是：sun.nio.ch.ServerSocketChannelImpl.bind(SocketAddress, int)
+     * */
     private static void doBind0(
             final ChannelFuture regFuture, final Channel channel,
             final SocketAddress localAddress, final ChannelPromise promise) {
-
-        // This method is invoked before channelRegistered() is triggered.  Give user handlers a chance to set up
-        // the pipeline in its channelRegistered() implementation.
+    	log.info("B.1 bind开始，增加到NioEventLoop的任务，其中channel类型：{},绑定的 eventLoop:{}",channel,channel.eventLoop());
         channel.eventLoop().execute(new Runnable() {
             @Override
             public void run() {
+            	log.info("B.2 bind线程开始执行:{}",this);
                 if (regFuture.isSuccess()) {
                     channel.bind(localAddress, promise).addListener(ChannelFutureListener.CLOSE_ON_FAILURE);
                 } else {

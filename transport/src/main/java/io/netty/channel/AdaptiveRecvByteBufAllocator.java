@@ -84,6 +84,9 @@ public class AdaptiveRecvByteBufAllocator implements RecvByteBufAllocator {
         }
     }
 
+    /**
+     * 处理分配的内容
+     * */
     private static final class HandleImpl implements Handle {
         private final int minIndex;
         private final int maxIndex;

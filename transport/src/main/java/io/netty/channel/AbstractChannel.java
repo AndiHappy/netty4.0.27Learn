@@ -15,16 +15,6 @@
  */
 package io.netty.channel;
 
-import io.netty.buffer.ByteBufAllocator;
-import io.netty.util.DefaultAttributeMap;
-import io.netty.util.ReferenceCountUtil;
-import io.netty.util.internal.EmptyArrays;
-import io.netty.util.internal.OneTimeTask;
-import io.netty.util.internal.PlatformDependent;
-import io.netty.util.internal.ThreadLocalRandom;
-import io.netty.util.internal.logging.InternalLogger;
-import io.netty.util.internal.logging.InternalLoggerFactory;
-
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.InetSocketAddress;
@@ -35,6 +25,16 @@ import java.nio.channels.ClosedChannelException;
 import java.nio.channels.NotYetConnectedException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
+
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.util.DefaultAttributeMap;
+import io.netty.util.ReferenceCountUtil;
+import io.netty.util.internal.EmptyArrays;
+import io.netty.util.internal.OneTimeTask;
+import io.netty.util.internal.PlatformDependent;
+import io.netty.util.internal.ThreadLocalRandom;
+import io.netty.util.internal.logging.InternalLogger;
+import io.netty.util.internal.logging.InternalLoggerFactory;
 
 /**
  * A skeletal {@link Channel} implementation.
@@ -55,6 +55,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 
     private final Channel parent;
     private final long hashCode = ThreadLocalRandom.current().nextLong();
+    
     //unsafe的命名比较的奇怪，register就是  channel.unsafe().register(NioEventLoop, promise);
     private final Unsafe unsafe;
     //Channel的成员变量pipeline，其中注册AbstractChannelHandlerContext处理链
@@ -277,6 +278,9 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
         return closeFuture;
     }
 
+    /**
+     * unsafe 的设置，是有一个抽象的方法，来设置的，有具体的不同类型的channel来实现，主要关注的是NioServerSocketChannel
+     * */
     @Override
     public Unsafe unsafe() {
         return unsafe;
@@ -284,6 +288,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 
     /**
      * Create a new {@link AbstractUnsafe} instance which will be used for the life-time of the {@link Channel}
+     * 抽象类的方法
      */
     protected abstract AbstractUnsafe newUnsafe();
 
@@ -356,7 +361,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
         } else if (localAddr != null) {
             strVal = String.format("[id: 0x%08x, %s]", (int) hashCode, localAddr);
         } else {
-            strVal = String.format("[id: 0x%08x]", (int) hashCode);
+            strVal = String.format("[id: 0x%08x,%s]", (int) hashCode,this.getClass().getSimpleName());
         }
 
         strValActive = active;
@@ -376,6 +381,8 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
     }
 
     /**
+     * NioServerSocketChannel 真正的register，bind的方式逻辑实现的逻辑
+     * 
      * {@link Unsafe} implementation which sub-classes must extend and use.
      */
     protected abstract class AbstractUnsafe implements Unsafe {
@@ -415,18 +422,23 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 return;
             }
 
+            //channel可eventLoop绑定在一起，以后channel上面的时间就能够在一个NioEventLoop中实现处理了。
             AbstractChannel.this.eventLoop = eventLoop;
-            //register0为什么会被执行两次呢？
-            //一次是bootStrapServer启动的时候？
-            //一次是telnet 127.0.0.1 8009 的时候？并且在这个时候，childHandler的处理才会初始化
-   
-            //当先的线程和正在运行的线程是否是同一个线程
+            
+            /***
+             * 下面开始执行了启动线程池的任务
+             * */
+            logger.info("2.2 开始启动线程任务，位置:{}",this);
             if (eventLoop.inEventLoop()) {
+            	/**
+            	 * eventLoop 为事件循环处理的操作，inEventLoop 判断是否在这个事件里面
+            	 * 判断的逻辑，就是当下的逻辑，是否是当前的线程里面
+            	 * */
                 register0(promise);
             } else {
                 try {
-                	logger.info("eventLoop:{}, currentThread:{}.inEventLoop() is false.",eventLoop.toString(),Thread.currentThread().toString());
-                	//OneTimeTaskImpl封装成Thread，这个封装值得看一看
+                	logger.info("当前线程:{} 不在EventLoop:{}.",Thread.currentThread(),eventLoop);
+                	// 一次性的任务
                 	OneTimeTaskImpl task = new OneTimeTaskImpl(promise);
                     eventLoop.execute(task);
                 } catch (Throwable t) {
@@ -438,12 +450,17 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                     safeSetFailure(promise, t);
                 }
             }
+
+            logger.info("3.0 线程任务已经进入taskQueue，到这个位置，已经可以返回了，开启多线程的运行。位置:{}",this);
+            
         }
         
+        /**
+         * OneTimeTaskImpl,封装一个注册的任务，会在NioEventLoop中作为一个runnable的线程调用，一般来说这是第一个任务
+         * */
         class OneTimeTaskImpl extends OneTimeTask {
         	ChannelPromise promise;
         	public OneTimeTaskImpl(ChannelPromise promise){
-        		logger.info("新建OneTimeTaskImpl");
         		this.promise = promise;
         	}
         	  @Override
@@ -453,23 +470,38 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
 
         }
 
-
         private void register0(ChannelPromise promise) {
             try {
                 // check if the channel is still open as it could be closed in the mean time when the register
                 // call was outside of the eventLoop
+            	/**
+            	 * setUncancellable ：Make this future impossible to cancel 如果已经canceled，则返回false
+            	 * ensureOpen(promise) 保证promise已经是open状态
+            	 * */
                 if (!promise.setUncancellable() || !ensureOpen(promise)) {
                     return;
                 }
                 boolean firstRegistration = neverRegistered;
+                //register 的真实的逻辑所在地!
                 doRegister();
+                //标志位
                 neverRegistered = false;
                 registered = true;
+                
+                /**
+                 * 对外进行判断的依据，在bootserverstrap里面，根据promise里面的success来判断是够成功注册
+                 * 另外的这个safeSetSuccess，也同样会：notifyListeners
+                 * */
                 safeSetSuccess(promise);
-                //register之后，channel处于active的状态
+                
+                //register之后，fire Event 处理的链条：LoggingHandler ==》ServerBootStrap$1 (iniChannel 的时候加入的内部类)
                 pipeline.fireChannelRegistered();
+                
                 // Only fire a channelActive if the channel has never been registered. This prevents firing
                 // multiple channel actives if the channel is deregistered and re-registered.
+                /**
+                 * isActive方法的判断逻辑：javaChannel().socket().isBound();
+                 * */
                 if (firstRegistration && isActive()) {
                     pipeline.fireChannelActive();
                 }
@@ -513,6 +545,7 @@ public abstract class AbstractChannel extends DefaultAttributeMap implements Cha
                 invokeLater(new OneTimeTask() {
                     @Override
                     public void run() {
+                    	//channel已经激活了
                         pipeline.fireChannelActive();
                     }
                 });

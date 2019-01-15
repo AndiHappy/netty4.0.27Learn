@@ -15,6 +15,17 @@
  */
 package io.netty.channel.nio;
 
+import java.io.IOException;
+import java.net.SocketAddress;
+import java.nio.channels.CancelledKeyException;
+import java.nio.channels.SelectableChannel;
+import java.nio.channels.SelectionKey;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.ByteBufUtil;
@@ -27,20 +38,12 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.ConnectTimeoutException;
 import io.netty.channel.EventLoop;
+import io.netty.util.NoteLog;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.ReferenceCounted;
 import io.netty.util.internal.OneTimeTask;
 import io.netty.util.internal.logging.InternalLogger;
 import io.netty.util.internal.logging.InternalLoggerFactory;
-
-import java.io.IOException;
-import java.net.SocketAddress;
-import java.nio.channels.CancelledKeyException;
-import java.nio.channels.SelectableChannel;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Abstract base class for {@link Channel} implementations which use a Selector based approach.
@@ -55,6 +58,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
     volatile SelectionKey selectionKey;
     private volatile boolean inputShutdown;
     private volatile boolean readPending;
+    public static final Logger log = LoggerFactory.getLogger(AbstractNioChannel.class);
 
     /**
      * The future of the current connection attempt.  If not null, subsequent
@@ -71,8 +75,18 @@ public abstract class AbstractNioChannel extends AbstractChannel {
      * @param ch                the underlying {@link SelectableChannel} on which it operates
      * @param readInterestOp    the ops to set to receive data from the {@link SelectableChannel}
      */
+    /**
+     * 在创建NioChannel的时候，已经搞定了一开始就感性的readInterestOp
+     * 例如： NioServerSocketChannel 的构建函数中，调用的就是： super(null, channel, SelectionKey.OP_ACCEPT);
+     * 但是:  NioSocketChannel 的构建函数中，调用的就是：  super(parent, ch, SelectionKey.OP_READ);
+     * 所以,AbstractNioChannel的构建的函数就是：AbstractNioChannel(Channel parent, SelectableChannel ch, int readInterestOp)
+     * 
+     * 但是这个readInterestOp，并不是在新建的时候，就主动的注册到了Selector里面的。而是通过Pipeline里面的tail或者head的handler来进行处理
+     * 这个可以通过Pipeline来进行处理
+     * */
     protected AbstractNioChannel(Channel parent, SelectableChannel ch, int readInterestOp) {
         super(parent);
+        log.info("0.5： 构建:{},Channel:{},InterestOp:{}",this.getClass().getSimpleName(),ch,readInterestOp);
         this.ch = ch;
         this.readInterestOp = readInterestOp;
         try {
@@ -185,8 +199,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         }
 
         @Override
-        public final void connect(
-                final SocketAddress remoteAddress, final SocketAddress localAddress, final ChannelPromise promise) {
+        public final void connect(final SocketAddress remoteAddress, final SocketAddress localAddress, final ChannelPromise promise) {
             if (!promise.setUncancellable() || !ensureOpen(promise)) {
                 return;
             }
@@ -339,7 +352,8 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         boolean selected = false;
         for (;;) {
             try {
-            	//selectorKey的attachement就是NioServerSocketChannel
+                log.info("2.5 注册最终执行的地方,Channel实例:{},Selector实例:{},interest:{},attachment:{}",
+                		javaChannel(),eventLoop().selector,0,this);
                 selectionKey = javaChannel().register(eventLoop().selector, 0, this);
                 return;
             } catch (CancelledKeyException e) {
@@ -378,6 +392,8 @@ public abstract class AbstractNioChannel extends AbstractChannel {
 
         final int interestOps = selectionKey.interestOps();
         if ((interestOps & readInterestOp) == 0) {
+        	//readInterestOp=16，这个应该是 int OP_ACCEPT = 1 << 4
+        	//这个值是如何初始化的
             selectionKey.interestOps(interestOps | readInterestOp);
         }
     }

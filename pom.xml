@@ -13,8 +13,7 @@
   ~ WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
   ~ License for the specific language governing permissions and limitations
   ~ under the License.
-  -->
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+  --><project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
   <modelVersion>4.0.0</modelVersion>
   <parent>
@@ -550,6 +549,7 @@
     <module>microbench</module>
     <module>all</module>
     <module>tarball</module>
+    <module>io</module>
   </modules>
 
   <dependencyManagement>
@@ -1128,39 +1128,39 @@
             </goals>
             <configuration>
               <target>
-                <taskdef resource="net/sf/antcontrib/antlib.xml" />
+                <taskdef resource="net/sf/antcontrib/antlib.xml"/>
 
                 <!-- Get the information about the latest commit -->
                 <exec executable="git" outputproperty="gitOutput.lastCommit" resultproperty="gitExitCode.lastCommit" failonerror="false" failifexecutionfails="false">
-                  <arg value="log" />
-                  <arg value="-1" />
-                  <arg value="--format=format:%h %H %cd" />
-                  <arg value="--date=iso" />
+                  <arg value="log"/>
+                  <arg value="-1"/>
+                  <arg value="--format=format:%h %H %cd"/>
+                  <arg value="--date=iso"/>
                 </exec>
-                <propertyregex property="shortCommitHash" input="${gitOutput.lastCommit}" regexp="^([0-9a-f]+) .*$" select="\1" casesensitive="true" defaultValue="0" />
-                <propertyregex property="longCommitHash" input="${gitOutput.lastCommit}" regexp="^[0-9a-f]+ ([0-9a-f]{40}) .*$" select="\1" casesensitive="true" defaultValue="0000000000000000000000000000000000000000" />
-                <propertyregex property="commitDate" input="${gitOutput.lastCommit}" regexp="^[0-9a-f]+ [0-9a-f]{40} (.*)$" select="\1" casesensitive="true" defaultValue="1970-01-01 00:00:00 +0000" />
+                <propertyregex property="shortCommitHash" input="${gitOutput.lastCommit}" regexp="^([0-9a-f]+) .*$" select="\1" casesensitive="true" defaultValue="0"/>
+                <propertyregex property="longCommitHash" input="${gitOutput.lastCommit}" regexp="^[0-9a-f]+ ([0-9a-f]{40}) .*$" select="\1" casesensitive="true" defaultValue="0000000000000000000000000000000000000000"/>
+                <propertyregex property="commitDate" input="${gitOutput.lastCommit}" regexp="^[0-9a-f]+ [0-9a-f]{40} (.*)$" select="\1" casesensitive="true" defaultValue="1970-01-01 00:00:00 +0000"/>
 
                 <!-- Get the information abount whether the repository is clean or dirty -->
                 <exec executable="git" outputproperty="gitOutput.repoStatus" resultproperty="gitExitCode.repoStatus" failonerror="false" failifexecutionfails="false">
-                  <arg value="status" />
-                  <arg value="--porcelain" />
+                  <arg value="status"/>
+                  <arg value="--porcelain"/>
                 </exec>
                 <if>
-                  <equals arg2="0" arg1="${gitExitCode.repoStatus}" />
+                  <equals arg2="0" arg1="${gitExitCode.repoStatus}"/>
                   <then>
                     <if>
-                      <equals arg2="" arg1="${gitOutput.repoStatus}" />
+                      <equals arg2="" arg1="${gitOutput.repoStatus}"/>
                       <then>
-                        <property name="repoStatus" value="clean" />
+                        <property name="repoStatus" value="clean"/>
                       </then>
                       <else>
-                        <property name="repoStatus" value="dirty" />
+                        <property name="repoStatus" value="dirty"/>
                       </else>
                     </if>
                   </then>
                   <else>
-                    <property name="repoStatus" value="unknown" />
+                    <property name="repoStatus" value="unknown"/>
                   </else>
                 </if>
 
@@ -1171,18 +1171,18 @@
                 <!--
                 <property name="metaInfDir" value="${project.basedir}/src/main/resources/META-INF" />
                 -->
-                <property name="metaInfDir" value="${project.build.outputDirectory}/META-INF" />
-                <property name="versionPropFile" value="${metaInfDir}/${project.groupId}.versions.properties" />
-                <mkdir dir="${metaInfDir}" />
-                <delete file="${versionPropFile}" quiet="true" />
+                <property name="metaInfDir" value="${project.build.outputDirectory}/META-INF"/>
+                <property name="versionPropFile" value="${metaInfDir}/${project.groupId}.versions.properties"/>
+                <mkdir dir="${metaInfDir}"/>
+                <delete file="${versionPropFile}" quiet="true"/>
 
                 <propertyfile file="${versionPropFile}" comment="Generated by netty-parent/pom.xml">
-                  <entry key="${project.artifactId}.version" value="${project.version}" />
-                  <entry key="${project.artifactId}.buildDate" type="date" value="now" pattern="yyyy-MM-dd HH:mm:ss Z" />
-                  <entry key="${project.artifactId}.commitDate" value="${commitDate}" />
-                  <entry key="${project.artifactId}.shortCommitHash" value="${shortCommitHash}" />
-                  <entry key="${project.artifactId}.longCommitHash" value="${longCommitHash}" />
-                  <entry key="${project.artifactId}.repoStatus" value="${repoStatus}" />
+                  <entry key="${project.artifactId}.version" value="${project.version}"/>
+                  <entry key="${project.artifactId}.buildDate" type="date" value="now" pattern="yyyy-MM-dd HH:mm:ss Z"/>
+                  <entry key="${project.artifactId}.commitDate" value="${commitDate}"/>
+                  <entry key="${project.artifactId}.shortCommitHash" value="${shortCommitHash}"/>
+                  <entry key="${project.artifactId}.longCommitHash" value="${longCommitHash}"/>
+                  <entry key="${project.artifactId}.repoStatus" value="${repoStatus}"/>
                 </propertyfile>
               </target>
             </configuration>
@@ -1329,7 +1329,7 @@
                     </goals>
                   </pluginExecutionFilter>
                   <action>
-                    <ignore />
+                    <ignore/>
                   </action>
                 </pluginExecution>
                 <pluginExecution>
@@ -1342,7 +1342,7 @@
                     </goals>
                   </pluginExecutionFilter>
                   <action>
-                    <ignore />
+                    <ignore/>
                   </action>
                 </pluginExecution>
                 <pluginExecution>
@@ -1355,7 +1355,7 @@
                     </goals>
                   </pluginExecutionFilter>
                   <action>
-                    <ignore />
+                    <ignore/>
                   </action>
                 </pluginExecution>
                 <pluginExecution>
@@ -1368,7 +1368,7 @@
                     </goals>
                   </pluginExecutionFilter>
                   <action>
-                    <ignore />
+                    <ignore/>
                   </action>
                 </pluginExecution>
                 <pluginExecution>
@@ -1381,7 +1381,7 @@
                     </goals>
                   </pluginExecutionFilter>
                   <action>
-                    <ignore />
+                    <ignore/>
                   </action>
                 </pluginExecution>
                 <pluginExecution>
@@ -1395,7 +1395,7 @@
                     </goals>
                   </pluginExecutionFilter>
                   <action>
-                    <ignore />
+                    <ignore/>
                   </action>
                 </pluginExecution>
                 <pluginExecution>
@@ -1410,7 +1410,7 @@
                     </goals>
                   </pluginExecutionFilter>
                   <action>
-                    <ignore />
+                    <ignore/>
                   </action>
                 </pluginExecution>
               </pluginExecutions>
@@ -1421,4 +1421,3 @@
     </pluginManagement>
   </build>
 </project>
-
