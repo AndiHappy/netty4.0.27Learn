@@ -45,7 +45,7 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
     private static final ChannelMetadata METADATA = new ChannelMetadata(false);
     private static final SelectorProvider DEFAULT_SELECTOR_PROVIDER = SelectorProvider.provider();
 
-    private static final InternalLogger logger = InternalLoggerFactory.getInstance(NioServerSocketChannel.class);
+    public static  InternalLogger logger = InternalLoggerFactory.getInstance(NioServerSocketChannel.class);
 
     private static ServerSocketChannel newSocket(SelectorProvider provider) {
         try {
@@ -127,7 +127,7 @@ public class NioServerSocketChannel extends AbstractNioMessageChannel
     @Override
     protected void doBind(SocketAddress localAddress) throws Exception {
     	//backlog: requested maximum length of the queue of incoming connections.
-    	log.info("B.3 bind线程真正的逻辑实现地:{}",this);
+    	log.info("B.3 bind线程真正的逻辑实现地:{}");
         javaChannel().socket().bind(localAddress, config.getBacklog());
     }
 

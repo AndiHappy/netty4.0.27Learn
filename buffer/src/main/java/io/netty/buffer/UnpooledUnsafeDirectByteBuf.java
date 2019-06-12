@@ -25,9 +25,10 @@ import java.nio.ByteOrder;
 import java.nio.channels.ClosedChannelException;
 import java.nio.channels.GatheringByteChannel;
 import java.nio.channels.ScatteringByteChannel;
+import java.util.logging.Logger;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+//import org.slf4j.Logger;
+//import org.slf4j.loggerfactory;
 
 /**
  * A NIO {@link ByteBuffer} based buffer.  It is recommended to use {@link Unpooled#directBuffer(int)}
@@ -42,9 +43,7 @@ import org.slf4j.LoggerFactory;
  * 一个就是增加了引用的机制：实现了ReferenceCounted接口。
  * */
 public class UnpooledUnsafeDirectByteBuf extends AbstractReferenceCountedByteBuf {
-
-    private static final Logger log = LoggerFactory.getLogger(UnpooledUnsafeDirectByteBuf.class);
-	
+	private Logger log = Logger.getLogger(UnpooledUnsafeDirectByteBuf.class.getName());
     private static final boolean NATIVE_ORDER = ByteOrder.nativeOrder() == ByteOrder.BIG_ENDIAN;
     
     private final ByteBufAllocator alloc;

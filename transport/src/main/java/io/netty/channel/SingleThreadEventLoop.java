@@ -16,9 +16,7 @@
 package io.netty.channel;
 
 import java.util.concurrent.ThreadFactory;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Logger;
 
 import io.netty.util.NoteLog;
 import io.netty.util.concurrent.EventExecutorGroup;
@@ -30,7 +28,7 @@ import io.netty.util.concurrent.SingleThreadEventExecutor;
  */
 public abstract class SingleThreadEventLoop extends SingleThreadEventExecutor implements EventLoop {
 
-    private static final Logger log = LoggerFactory.getLogger(SingleThreadEventLoop.class);
+    private static final Logger log = Logger.getLogger(SingleThreadEventLoop.class.getName());
 
     /**
      * @see {@link SingleThreadEventExecutor#SingleThreadEventExecutor(EventExecutorGroup, ThreadFactory, boolean)}
@@ -54,7 +52,7 @@ public abstract class SingleThreadEventLoop extends SingleThreadEventExecutor im
      * */
     @Override
     public ChannelFuture register(Channel channel) {
-    	log.info("2.1 Channel register 成员函数所在执行实例:{} 通道实例:{}",this,channel);
+    	log.info("2.1 Channel register 成员函数所在执行实例:"+this+" 通道实例: " + channel);
         return register(channel, new DefaultChannelPromise(channel, this));
     }
 

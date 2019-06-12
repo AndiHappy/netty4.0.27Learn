@@ -46,7 +46,7 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
  */
 public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerChannel> {
 
-	private static final InternalLogger logger = InternalLoggerFactory.getInstance(ServerBootstrap.class);
+	public static InternalLogger logger = InternalLoggerFactory.getInstance(ServerBootstrap.class);
 
 	private final Map<ChannelOption<?>, Object> childOptions = new LinkedHashMap<ChannelOption<?>, Object>();
 	private final Map<AttributeKey<?>, Object> childAttrs = new LinkedHashMap<AttributeKey<?>, Object>();
@@ -54,7 +54,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
 	private volatile ChannelHandler childHandler;
 
 	public ServerBootstrap() {
-    	log.info("Netty Server construct begine:  {}", DateFormat.getDateTimeInstance().format(new Date()));
+		logger.info("Netty Server construct begine:  "+ DateFormat.getDateTimeInstance().format(new Date()));
 	}
 
 	private ServerBootstrap(ServerBootstrap bootstrap) {
@@ -311,7 +311,7 @@ public class ServerBootstrap extends AbstractBootstrap<ServerBootstrap, ServerCh
 				// 同样的逻辑NioEventLoopGroup提供的register，但是这里的NioEventLoopGroup，表示的是worker线程组。
 				// 这里就把NioSocketChannel注册到代表着
 				// worker事件组的：NioEventLoopGroup下面的某一个NioEventLoop
-		        log.info("channel:{} ===============register============> childGroup:{} ",child,childGroup);
+				logger.info("channel:{} ===============register============> childGroup:{} ",child,childGroup);
 				ChannelFuture future = childGroup.register(child);
 				future.addListener(new ChannelFutureListener() {
 					@Override

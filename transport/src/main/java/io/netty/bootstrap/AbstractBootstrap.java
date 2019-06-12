@@ -16,6 +16,7 @@
 
 package io.netty.bootstrap;
 
+import io.netty.buffer.UnpooledUnsafeDirectByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelException;
 import io.netty.channel.ChannelFuture;
@@ -41,9 +42,8 @@ import java.text.DateFormat;
 import java.util.Date;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.logging.Logger;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * {@link AbstractBootstrap} is a helper class that makes it easy to bootstrap a {@link Channel}. It support
@@ -60,7 +60,7 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     private final Map<ChannelOption<?>, Object> options = new LinkedHashMap<ChannelOption<?>, Object>();
     private final Map<AttributeKey<?>, Object> attrs = new LinkedHashMap<AttributeKey<?>, Object>();
     private volatile ChannelHandler handler;
-    public static final Logger log = LoggerFactory.getLogger(AbstractBootstrap.class);
+	private static Logger log = Logger.getLogger(AbstractBootstrap.class.getName());
 
     AbstractBootstrap() {
         // Disallow extending from a different package.
@@ -297,9 +297,9 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
      * */
     private ChannelFuture doBind(final SocketAddress localAddress) {
     	//初始化Channel，并且注册,channel 注册到 selector上面。
-    	log.info("initAndRegister:{} 开始,初始化，并且注册Channel",localAddress);
+    	log.info("initAndRegister:"+localAddress+" 开始,初始化，并且注册Channel");
         final ChannelFuture regFuture = initAndRegister();
-        log.info("initAndRegister:{} 结束,主要完成的逻辑是：\n\t\t 1. 启动了NioEventLoop，\n\t\t 2. 把Selectchannel 注册到Selector中. \n\t\t 3. 初始化完成了pipeline的handler里面。",localAddress);
+        log.info("initAndRegister:"+localAddress+" 结束,主要完成的逻辑是：\n\t\t 1. 启动了NioEventLoop，\n\t\t 2. 把Selectchannel 注册到Selector中. \n\t\t 3. 初始化完成了pipeline的handler里面。");
         //异常的判断
         final Channel channel = regFuture.channel();
         if (regFuture.cause() != null) {
@@ -380,12 +380,12 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
         *
         **************************************************************************************/
 
-        log.info("1. channel初始化完成:{} ",channel);
+        log.info("1. channel初始化完成:"+ channel);
        
         /**
          * NioServerSocketChannel 包含的 javaChannel() 注册到了 NioEventLoopGroup 的成员变量：Selector上面
          * */
-        log.info("2.0 通道开始注册到Selector上面：channel:{} register=> group:{}",channel,group());
+        log.info("2.0 通道开始注册到Selector上面：channel:"+channel+" register=> group: " +group());
         ChannelFuture regFuture = group().register(channel);
 
         log.info("4.0 initAndRegister over. 完成初始化，并且注册");
@@ -411,11 +411,11 @@ public abstract class AbstractBootstrap<B extends AbstractBootstrap<B, C>, C ext
     private static void doBind0(
             final ChannelFuture regFuture, final Channel channel,
             final SocketAddress localAddress, final ChannelPromise promise) {
-    	log.info("B.1 bind开始，增加到NioEventLoop的任务，其中channel类型：{},绑定的 eventLoop:{}",channel,channel.eventLoop());
+    	log.info("B.1 bind开始，增加到NioEventLoop的任务，其中channel类型："+channel+",绑定的 eventLoop: "+channel.eventLoop());
         channel.eventLoop().execute(new Runnable() {
             @Override
             public void run() {
-            	log.info("B.2 bind线程开始执行:{}",this);
+            	log.info("B.2 bind线程开始执行: " +this);
                 if (regFuture.isSuccess()) {
                     channel.bind(localAddress, promise).addListener(ChannelFutureListener.CLOSE_ON_FAILURE);
                 } else {

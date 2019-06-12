@@ -22,9 +22,8 @@ import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -58,7 +57,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
     volatile SelectionKey selectionKey;
     private volatile boolean inputShutdown;
     private volatile boolean readPending;
-    public static final Logger log = LoggerFactory.getLogger(AbstractNioChannel.class);
+    public static final Logger log = Logger.getLogger(AbstractNioChannel.class.getName());
 
     /**
      * The future of the current connection attempt.  If not null, subsequent
@@ -86,7 +85,7 @@ public abstract class AbstractNioChannel extends AbstractChannel {
      * */
     protected AbstractNioChannel(Channel parent, SelectableChannel ch, int readInterestOp) {
         super(parent);
-        log.info("0.5： 构建:{},Channel:{},InterestOp:{}",this.getClass().getSimpleName(),ch,readInterestOp);
+//        log.info("0.5： 构建:{},Channel:{},InterestOp:{}",this.getClass().getSimpleName(),ch,readInterestOp);
         this.ch = ch;
         this.readInterestOp = readInterestOp;
         try {
@@ -352,8 +351,8 @@ public abstract class AbstractNioChannel extends AbstractChannel {
         boolean selected = false;
         for (;;) {
             try {
-                log.info("2.5 注册最终执行的地方,Channel实例:{},Selector实例:{},interest:{},attachment:{}",
-                		javaChannel(),eventLoop().selector,0,this);
+//                log.log(Level.INFO,"2.5 注册最终执行的地方,Channel实例:{},Selector实例:{},interest:{},attachment:{}",
+//                		javaChannel(),eventLoop().selector,0,this);
                 selectionKey = javaChannel().register(eventLoop().selector, 0, this);
                 return;
             } catch (CancelledKeyException e) {

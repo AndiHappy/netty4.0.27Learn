@@ -32,9 +32,7 @@ import java.util.Set;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Logger;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelException;
@@ -53,7 +51,7 @@ import io.netty.util.internal.logging.InternalLoggerFactory;
  */
 public final class NioEventLoop extends SingleThreadEventLoop {
 
-	public static final Logger log = LoggerFactory.getLogger(NioEventLoop.class);
+	public static final Logger log = java.util.logging.Logger.getLogger(NioEventLoop.class.getName());
 
     private static final InternalLogger logger = InternalLoggerFactory.getInstance(NioEventLoop.class);
 
@@ -530,7 +528,7 @@ public final class NioEventLoop extends SingleThreadEventLoop {
             final Object a = k.attachment();
 
             if (a instanceof AbstractNioChannel) {
-            	log.info("事件处理,事件的Int值:{},attachment:{},class:{}",k.interestOps(),a.toString(),a.getClass().getSimpleName());
+            	log.info("事件处理,事件的Int值:"+k.interestOps()+",attachment:"+a.toString()+".");
                 processSelectedKey(k, (AbstractNioChannel) a);
             } else {
                 @SuppressWarnings("unchecked")
